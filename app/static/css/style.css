@@ -1,4 +1,4 @@
-/* === TransformerIQ — Competition-Grade CSS === */
+/* === Transformer Equivalent Circuit Analyzer === */
 
 /* ── Reset & Variables ── */
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
@@ -41,6 +41,9 @@ body {
     min-height: 100vh;
     overflow-x: hidden;
     line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
 }
 
 /* ── Animated Background ── */
@@ -132,7 +135,7 @@ body {
     transition: all 0.3s ease;
 }
 .drop-zone:hover { border-color: var(--accent); background: rgba(56,189,248,0.04); }
-.drop-zone.drag-over { border-color: var(--accent); background: rgba(56,189,248,0.08); transform: scale(1.01); }
+.drop-zone.drag-over { border-color: var(--accent); background: rgba(56,189,248,0.08); }
 
 .drop-icon { width: 48px; height: 48px; margin: 0 auto 12px; color: var(--text-muted); }
 .drop-text { font-size: 14px; color: var(--text-dim); margin-bottom: 4px; }
@@ -228,7 +231,7 @@ body {
 }
 .chart-card.full-width { grid-column: 1 / -1; }
 .chart-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 16px; color: var(--text); }
-.chart-card canvas { width: 100% !important; max-height: 320px; }
+.chart-card canvas { width: 100% !important; max-height: 320px; image-rendering: crisp-edges; }
 
 /* ── Parameter Grids ── */
 .params-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 28px; }

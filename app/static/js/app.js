@@ -1,4 +1,4 @@
-/* === TransformerIQ — App Logic === */
+/* === Transformer Equivalent Circuit Analyzer — App Logic === */
 
 // Global state
 let analysisResults = null;
@@ -8,7 +8,7 @@ let charts = {};
 ['nl', 'sc'].forEach(prefix => {
     const dropZone = document.getElementById(`${prefix}DropZone`);
     const fileInput = document.getElementById(`${prefix}File`);
-    
+
     // Drag and drop
     ['dragenter', 'dragover'].forEach(evt => {
         dropZone.addEventListener(evt, e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
@@ -29,7 +29,7 @@ function handleFileSelect(prefix) {
     const name = document.getElementById(`${prefix}FileName`);
     const card = document.getElementById(`${prefix}Card`);
     const dropZone = document.getElementById(`${prefix}DropZone`);
-    
+
     if (input.files.length > 0) {
         name.textContent = input.files[0].name;
         info.style.display = 'flex';
@@ -43,7 +43,7 @@ function removeFile(prefix) {
     const info = document.getElementById(`${prefix}FileInfo`);
     const card = document.getElementById(`${prefix}Card`);
     const dropZone = document.getElementById(`${prefix}DropZone`);
-    
+
     input.value = '';
     info.style.display = 'none';
     dropZone.style.display = 'block';
@@ -53,31 +53,31 @@ function removeFile(prefix) {
 // ── Form Submission ──
 document.getElementById('uploadForm').addEventListener('submit', async function(e) {
     e.preventDefault();
-    
+
     const btn = document.getElementById('analyzeBtn');
     const btnText = btn.querySelector('.btn-text');
     const btnLoader = btn.querySelector('.btn-loader');
-    
+
     btn.disabled = true;
     btnText.style.display = 'none';
     btnLoader.style.display = 'inline-flex';
     clearAlerts();
-    
+
     const formData = new FormData(this);
-    
+
     try {
         const response = await fetch('/analyze', { method: 'POST', body: formData });
         const data = await response.json();
-        
+
         if (data.error) {
             showAlert(data.error, 'error');
             return;
         }
-        
+
         // Show warnings
         if (data.warnings) data.warnings.forEach(w => showAlert(w, 'warning'));
         if (data.errors && data.errors.length > 0) data.errors.forEach(e => showAlert(e, 'error'));
-        
+
         if (data.no_load || data.short_circuit) {
             analysisResults = data;
             renderResults(data);
@@ -119,6 +119,7 @@ Chart.defaults.borderColor = '#2a3548';
 Chart.defaults.font.family = "'DM Sans', sans-serif";
 Chart.defaults.plugins.legend.labels.usePointStyle = true;
 Chart.defaults.plugins.legend.labels.pointStyle = 'circle';
+Chart.defaults.devicePixelRatio = window.devicePixelRatio || 2;
 
 function destroyChart(id) { if(charts[id]) { charts[id].destroy(); delete charts[id]; } }
 
@@ -144,7 +145,7 @@ function renderResults(data) {
 function renderKPIs(data) {
     const grid = document.getElementById('kpiGrid');
     const kpis = [];
-    
+
     if (data.no_load) {
         kpis.push({ label: 'Core Loss', value: fmt(data.no_load.P_core, 2), unit: 'W', sub: 'No-Load Test' });
         kpis.push({ label: 'Magnetizing Reactance', value: fmt(data.no_load.X_m, 1), unit: 'Ω', sub: `Rc = ${fmt(data.no_load.R_c, 1)} Ω` });
@@ -159,7 +160,7 @@ function renderKPIs(data) {
         kpis.push({ label: 'Max Efficiency', value: fmt(data.combined.max_efficiency, 1), unit: '%', sub: `at ${fmt(data.combined.x_max_efficiency * 100, 0)}% load` });
         kpis.push({ label: 'Rated VA', value: fmt(data.combined.S_rated, 1), unit: 'VA', sub: 'Apparent Power' });
     }
-    
+
     grid.innerHTML = kpis.map(k => `
         <div class="kpi-card">
             <div class="kpi-label">${k.label}</div>
@@ -171,15 +172,16 @@ function renderKPIs(data) {
 
 // ── Overview Charts ──
 function renderOverviewCharts(data) {
-    const placeholder = '<div style="display:flex;align-items:center;justify-content:center;height:180px;color:#64748b;font-size:13px;">Upload both No-Load and Short-Circuit files to see this chart</div>';
+    const noDataMsg = '<div style="display:flex;align-items:center;justify-content:center;height:180px;color:#64748b;font-size:13px;">Upload both test files to see this chart</div>';
+
+    // Efficiency + VR charts need combined data
     if (!data.combined) {
-        document.getElementById('efficiencyChart').closest('.chart-card').innerHTML += placeholder;
-        document.getElementById('vrChart').closest('.chart-card').innerHTML += placeholder;
-        document.getElementById('efficiencyChart').style.display = 'none';
-        document.getElementById('vrChart').style.display = 'none';
-    }
-    // Efficiency Chart
-    if (data.combined) {
+        ['efficiencyChart', 'vrChart'].forEach(id => {
+            const card = document.getElementById(id).closest('.chart-card');
+            card.innerHTML = `<h3>${card.querySelector('h3').textContent}</h3>${noDataMsg}`;
+        });
+    } else {
+        // Efficiency Chart
         destroyChart('efficiency');
         const ctx = document.getElementById('efficiencyChart').getContext('2d');
         const upf = data.combined.efficiency_data.filter(e => e.pf === 1.0);
@@ -189,13 +191,13 @@ function renderOverviewCharts(data) {
             data: {
                 labels: upf.map(e => `${(e.load_fraction*100).toFixed(0)}%`),
                 datasets: [
-                    { label: 'UPF (1.0)', data: upf.map(e => e.efficiency), borderColor: '#38bdf8', backgroundColor: 'rgba(56,189,248,0.1)', fill: true, tension: 0.4 },
-                    { label: '0.8 PF Lag', data: pf8.map(e => e.efficiency), borderColor: '#f472b6', backgroundColor: 'rgba(244,114,182,0.1)', fill: true, tension: 0.4 },
+                    { label: 'UPF (1.0)', data: upf.map(e => e.efficiency), borderColor: '#38bdf8', backgroundColor: 'rgba(56,189,248,0.1)', fill: true, tension: 0.4, pointRadius: 0 },
+                    { label: '0.8 PF Lag', data: pf8.map(e => e.efficiency), borderColor: '#f472b6', backgroundColor: 'rgba(244,114,182,0.1)', fill: true, tension: 0.4, pointRadius: 0 },
                 ]
             },
             options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { title: { display: true, text: 'Efficiency (%)' } } } }
         });
-        
+
         // VR Chart
         destroyChart('vr');
         const ctx2 = document.getElementById('vrChart').getContext('2d');
@@ -205,15 +207,15 @@ function renderOverviewCharts(data) {
             data: {
                 labels: vr.map(v => v.pf),
                 datasets: [
-                    { label: 'Lagging', data: vr.map(v => v.vr_lagging), backgroundColor: 'rgba(56,189,248,0.6)' },
-                    { label: 'Leading', data: vr.map(v => v.vr_leading), backgroundColor: 'rgba(244,114,182,0.6)' },
+                    { label: 'Lagging', data: vr.map(v => v.vr_lagging), backgroundColor: 'rgba(56,189,248,0.6)', borderRadius: 4 },
+                    { label: 'Leading', data: vr.map(v => v.vr_leading), backgroundColor: 'rgba(244,114,182,0.6)', borderRadius: 4 },
                 ]
             },
             options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { title: { display: true, text: 'VR (%)' } }, x: { title: { display: true, text: 'Power Factor' } } } }
         });
     }
-    
-    // Loss Distribution
+
+    // Loss Distribution — needs both tests
     if (data.no_load && data.short_circuit) {
         destroyChart('loss');
         const ctx3 = document.getElementById('lossChart').getContext('2d');
@@ -225,9 +227,12 @@ function renderOverviewCharts(data) {
             },
             options: { responsive: true, cutout: '60%', plugins: { legend: { position: 'bottom' } } }
         });
+    } else {
+        const lossCard = document.getElementById('lossChart').closest('.chart-card');
+        lossCard.innerHTML = `<h3>${lossCard.querySelector('h3').textContent}</h3>${noDataMsg}`;
     }
-    
-    // Power Triangle (SC test)
+
+    // Power Triangle — needs SC
     if (data.short_circuit) {
         destroyChart('power');
         const ctx4 = document.getElementById('powerChart').getContext('2d');
@@ -240,6 +245,9 @@ function renderOverviewCharts(data) {
             },
             options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { title: { display: true, text: 'Power (W/VA/VAR)' } } } }
         });
+    } else {
+        const powerCard = document.getElementById('powerChart').closest('.chart-card');
+        powerCard.innerHTML = `<h3>${powerCard.querySelector('h3').textContent}</h3>${noDataMsg}`;
     }
 }
 
@@ -247,27 +255,27 @@ function renderOverviewCharts(data) {
 function renderNoLoadTab(data) {
     const nl = data.no_load;
     const params = [
-        { name: 'Open-Circuit Voltage', sym: 'V_OC', val: nl.V_oc.toFixed(2), unit: 'V' },
-        { name: 'No-Load Current', sym: 'I_0', val: nl.I_o.toFixed(6), unit: 'A' },
-        { name: 'Core Loss', sym: 'P_core', val: nl.P_core.toFixed(4), unit: 'W' },
-        { name: 'Power Factor', sym: 'cos φ₀', val: nl.PF_nl.toFixed(6), unit: '' },
-        { name: 'Core Loss Current', sym: 'I_c', val: nl.I_c.toFixed(6), unit: 'A' },
-        { name: 'Magnetizing Current', sym: 'I_m', val: nl.I_m.toFixed(6), unit: 'A' },
-        { name: 'Core Resistance', sym: 'R_c', val: nl.R_c.toFixed(2), unit: 'Ω' },
-        { name: 'Magnetizing Reactance', sym: 'X_m', val: nl.X_m.toFixed(2), unit: 'Ω' },
-        { name: 'Apparent Power', sym: 'S₀', val: nl.S_o.toFixed(4), unit: 'VA' },
-        { name: 'Reactive Power', sym: 'Q₀', val: nl.Q_o.toFixed(4), unit: 'VAR' },
-        { name: 'No-Load Angle', sym: 'φ₀', val: nl.theta_nl_deg.toFixed(2), unit: '°' },
-        { name: 'Frequency', sym: 'f', val: nl.frequency_Hz.toFixed(1), unit: 'Hz' },
+        { name: 'Open-Circuit Voltage', sym: 'V_OC', val: fmt(nl.V_oc, 2), unit: 'V' },
+        { name: 'No-Load Current', sym: 'I_0', val: fmt(nl.I_o, 6), unit: 'A' },
+        { name: 'Core Loss', sym: 'P_core', val: fmt(nl.P_core, 4), unit: 'W' },
+        { name: 'Power Factor', sym: 'cos φ₀', val: fmt(nl.PF_nl, 6), unit: '' },
+        { name: 'Core Loss Current', sym: 'I_c', val: fmt(nl.I_c, 6), unit: 'A' },
+        { name: 'Magnetizing Current', sym: 'I_m', val: fmt(nl.I_m, 6), unit: 'A' },
+        { name: 'Core Resistance', sym: 'R_c', val: fmt(nl.R_c, 2), unit: 'Ω' },
+        { name: 'Magnetizing Reactance', sym: 'X_m', val: fmt(nl.X_m, 2), unit: 'Ω' },
+        { name: 'Apparent Power', sym: 'S₀', val: fmt(nl.S_o, 4), unit: 'VA' },
+        { name: 'Reactive Power', sym: 'Q₀', val: fmt(nl.Q_o, 4), unit: 'VAR' },
+        { name: 'No-Load Angle', sym: 'φ₀', val: fmt(nl.theta_nl_deg, 2), unit: '°' },
+        { name: 'Frequency', sym: 'f', val: fmt(nl.frequency_Hz, 1), unit: 'Hz' },
     ];
-    
+
     document.getElementById('nlParamsGrid').innerHTML = params.map(p => `
         <div class="param-card">
             <div><div class="param-name">${p.name}</div><div class="param-symbol">${p.sym}</div></div>
             <div><span class="param-val">${p.val}</span><span class="param-unit">${p.unit}</span></div>
         </div>
     `).join('');
-    
+
     // Harmonic chart
     if (data.harmonics && data.harmonics.no_load) {
         destroyChart('nlHarmonic');
@@ -278,15 +286,15 @@ function renderNoLoadTab(data) {
             data: {
                 labels: h.current_harmonics.map(x => `H${x.harmonic}`),
                 datasets: [
-                    { label: 'Voltage (%)', data: h.voltage_harmonics.map(x => x.percent), backgroundColor: 'rgba(56,189,248,0.6)' },
-                    { label: 'Current (%)', data: h.current_harmonics.map(x => x.percent), backgroundColor: 'rgba(244,114,182,0.6)' },
+                    { label: 'Voltage (%)', data: h.voltage_harmonics.map(x => x.percent), backgroundColor: 'rgba(56,189,248,0.6)', borderRadius: 4 },
+                    { label: 'Current (%)', data: h.current_harmonics.map(x => x.percent), backgroundColor: 'rgba(244,114,182,0.6)', borderRadius: 4 },
                 ]
             },
             options: { responsive: true, plugins: { legend: { position: 'top' }, title: { display: true, text: `THD_V: ${h.thd_voltage}% | THD_I: ${h.thd_current}%` } }, scales: { y: { title: { display: true, text: '% of Fundamental' } } } }
         });
     }
-    
-    // Phasor chart (using polar area)
+
+    // Phasor chart
     destroyChart('nlPhasor');
     const pCtx = document.getElementById('nlPhasorChart').getContext('2d');
     charts['nlPhasor'] = new Chart(pCtx, {
@@ -297,7 +305,7 @@ function renderNoLoadTab(data) {
         },
         options: { responsive: true, plugins: { legend: { position: 'bottom' }, title: { display: true, text: 'Current Components (mA)' } } }
     });
-    
+
     // NL Power breakdown
     destroyChart('nlPowerBD');
     const pbCtx = document.getElementById('nlPowerBreakdown').getContext('2d');
@@ -315,27 +323,27 @@ function renderNoLoadTab(data) {
 function renderShortCircuitTab(data) {
     const sc = data.short_circuit;
     const params = [
-        { name: 'SC Voltage', sym: 'V_SC', val: sc.V_sc.toFixed(4), unit: 'V' },
-        { name: 'SC Current', sym: 'I_SC', val: sc.I_sc.toFixed(6), unit: 'A' },
-        { name: 'Copper Loss', sym: 'P_cu', val: sc.P_cu.toFixed(4), unit: 'W' },
-        { name: 'Power Factor', sym: 'cos φ_SC', val: sc.PF_sc.toFixed(6), unit: '' },
-        { name: 'Eq. Impedance', sym: 'Z_eq', val: sc.Z_eq.toFixed(4), unit: 'Ω' },
-        { name: 'Eq. Resistance', sym: 'R_eq', val: sc.R_eq.toFixed(4), unit: 'Ω' },
-        { name: 'Eq. Reactance', sym: 'X_eq', val: sc.X_eq.toFixed(4), unit: 'Ω' },
-        { name: 'R₁ (approx)', sym: 'R₁', val: sc.R1_approx.toFixed(4), unit: 'Ω' },
-        { name: 'X₁ (approx)', sym: 'X₁', val: sc.X1_approx.toFixed(4), unit: 'Ω' },
-        { name: 'Apparent Power', sym: 'S_SC', val: sc.S_sc.toFixed(4), unit: 'VA' },
-        { name: 'SC Angle', sym: 'φ_SC', val: sc.theta_sc_deg.toFixed(2), unit: '°' },
-        { name: 'Frequency', sym: 'f', val: sc.frequency_Hz.toFixed(1), unit: 'Hz' },
+        { name: 'SC Voltage', sym: 'V_SC', val: fmt(sc.V_sc, 4), unit: 'V' },
+        { name: 'SC Current', sym: 'I_SC', val: fmt(sc.I_sc, 6), unit: 'A' },
+        { name: 'Copper Loss', sym: 'P_cu', val: fmt(sc.P_cu, 4), unit: 'W' },
+        { name: 'Power Factor', sym: 'cos φ_SC', val: fmt(sc.PF_sc, 6), unit: '' },
+        { name: 'Eq. Impedance', sym: 'Z_eq', val: fmt(sc.Z_eq, 4), unit: 'Ω' },
+        { name: 'Eq. Resistance', sym: 'R_eq', val: fmt(sc.R_eq, 4), unit: 'Ω' },
+        { name: 'Eq. Reactance', sym: 'X_eq', val: fmt(sc.X_eq, 4), unit: 'Ω' },
+        { name: 'R₁ (approx)', sym: 'R₁', val: fmt(sc.R1_approx, 4), unit: 'Ω' },
+        { name: 'X₁ (approx)', sym: 'X₁', val: fmt(sc.X1_approx, 4), unit: 'Ω' },
+        { name: 'Apparent Power', sym: 'S_SC', val: fmt(sc.S_sc, 4), unit: 'VA' },
+        { name: 'SC Angle', sym: 'φ_SC', val: fmt(sc.theta_sc_deg, 2), unit: '°' },
+        { name: 'Frequency', sym: 'f', val: fmt(sc.frequency_Hz, 1), unit: 'Hz' },
     ];
-    
+
     document.getElementById('scParamsGrid').innerHTML = params.map(p => `
         <div class="param-card">
             <div><div class="param-name">${p.name}</div><div class="param-symbol">${p.sym}</div></div>
             <div><span class="param-val">${p.val}</span><span class="param-unit">${p.unit}</span></div>
         </div>
     `).join('');
-    
+
     // SC Harmonic chart
     if (data.harmonics && data.harmonics.short_circuit) {
         destroyChart('scHarmonic');
@@ -346,14 +354,14 @@ function renderShortCircuitTab(data) {
             data: {
                 labels: h.current_harmonics.map(x => `H${x.harmonic}`),
                 datasets: [
-                    { label: 'Voltage (%)', data: h.voltage_harmonics.map(x => x.percent), backgroundColor: 'rgba(56,189,248,0.6)' },
-                    { label: 'Current (%)', data: h.current_harmonics.map(x => x.percent), backgroundColor: 'rgba(244,114,182,0.6)' },
+                    { label: 'Voltage (%)', data: h.voltage_harmonics.map(x => x.percent), backgroundColor: 'rgba(56,189,248,0.6)', borderRadius: 4 },
+                    { label: 'Current (%)', data: h.current_harmonics.map(x => x.percent), backgroundColor: 'rgba(244,114,182,0.6)', borderRadius: 4 },
                 ]
             },
             options: { responsive: true, plugins: { legend: { position: 'top' }, title: { display: true, text: `THD_V: ${h.thd_voltage}% | THD_I: ${h.thd_current}%` } }, scales: { y: { title: { display: true, text: '% of Fundamental' } } } }
         });
     }
-    
+
     // Impedance triangle
     destroyChart('scImpedance');
     const iCtx = document.getElementById('scImpedanceChart').getContext('2d');
@@ -365,7 +373,7 @@ function renderShortCircuitTab(data) {
         },
         options: { responsive: true, plugins: { legend: { display: false }, title: { display: true, text: 'Impedance Components (Ω)' } } }
     });
-    
+
     // SC Power breakdown
     destroyChart('scPowerBD');
     const spCtx = document.getElementById('scPowerBreakdown').getContext('2d');
@@ -384,25 +392,23 @@ function renderCombinedTab(data) {
     const c = data.combined;
     const nl = data.no_load;
     const sc = data.short_circuit;
-    
+
     document.getElementById('combinedSummary').innerHTML = `
         <h3>Equivalent Circuit Summary</h3>
         <div class="kpi-grid" style="margin-top:16px">
-            <div class="kpi-card"><div class="kpi-label">Rated VA</div><div class="kpi-value">${c.S_rated.toFixed(1)}<span class="kpi-unit">VA</span></div></div>
-            <div class="kpi-card"><div class="kpi-label">Total FL Losses</div><div class="kpi-value">${c.total_loss_fl.toFixed(2)}<span class="kpi-unit">W</span></div></div>
-            <div class="kpi-card"><div class="kpi-label">Max Efficiency Load</div><div class="kpi-value">${(c.x_max_efficiency*100).toFixed(1)}<span class="kpi-unit">%</span></div></div>
-            <div class="kpi-card"><div class="kpi-label">Max Efficiency</div><div class="kpi-value">${c.max_efficiency.toFixed(2)}<span class="kpi-unit">%</span></div></div>
-            <div class="kpi-card"><div class="kpi-label">%Z</div><div class="kpi-value">${c.Z_percent.toFixed(2)}<span class="kpi-unit">%</span></div></div>
-            <div class="kpi-card"><div class="kpi-label">%R</div><div class="kpi-value">${c.R_percent.toFixed(2)}<span class="kpi-unit">%</span></div></div>
+            <div class="kpi-card"><div class="kpi-label">Rated VA</div><div class="kpi-value">${fmt(c.S_rated, 1)}<span class="kpi-unit">VA</span></div></div>
+            <div class="kpi-card"><div class="kpi-label">Total FL Losses</div><div class="kpi-value">${fmt(c.total_loss_fl, 2)}<span class="kpi-unit">W</span></div></div>
+            <div class="kpi-card"><div class="kpi-label">Max Efficiency Load</div><div class="kpi-value">${fmt(c.x_max_efficiency * 100, 1)}<span class="kpi-unit">%</span></div></div>
+            <div class="kpi-card"><div class="kpi-label">Max Efficiency</div><div class="kpi-value">${fmt(c.max_efficiency, 2)}<span class="kpi-unit">%</span></div></div>
+            <div class="kpi-card"><div class="kpi-label">%Z</div><div class="kpi-value">${fmt(c.Z_percent, 2)}<span class="kpi-unit">%</span></div></div>
+            <div class="kpi-card"><div class="kpi-label">%R</div><div class="kpi-value">${fmt(c.R_percent, 2)}<span class="kpi-unit">%</span></div></div>
         </div>
     `;
-    
+
     // Efficiency curves
     destroyChart('combinedEff');
     const ctx = document.getElementById('combinedEffChart').getContext('2d');
-    const upf = c.efficiency_data.filter(e => e.pf === 1.0);
-    const pf8 = c.efficiency_data.filter(e => e.pf === 0.8);
-    
+
     // Generate smooth efficiency curve with more points
     const loadPoints = [];
     const effUPF = [];
@@ -415,7 +421,7 @@ function renderCombinedTab(data) {
         effUPF.push(p1 / (p1 + nl.P_core + pcu) * 100);
         effPF8.push(p2 / (p2 + nl.P_core + pcu) * 100);
     }
-    
+
     charts['combinedEff'] = new Chart(ctx, {
         type: 'line',
         data: {
@@ -427,26 +433,26 @@ function renderCombinedTab(data) {
         },
         options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { title: { display: true, text: 'Efficiency (%)' }, min: 0 }, x: { title: { display: true, text: 'Load (% of Rated)' } } } }
     });
-    
+
     // Tables
     let tables = '';
-    
+
     // VR Table
     tables += `<div class="data-table-wrap"><h3>Voltage Regulation</h3><table>
         <tr><th>Power Factor</th><th>VR Lagging (%)</th><th>VR Leading (%)</th></tr>`;
     c.voltage_regulation.forEach(vr => {
-        tables += `<tr><td>${vr.pf}</td><td>${vr.vr_lagging.toFixed(4)}</td><td>${vr.vr_leading.toFixed(4)}</td></tr>`;
+        tables += `<tr><td>${vr.pf}</td><td>${fmt(vr.vr_lagging, 4)}</td><td>${fmt(vr.vr_leading, 4)}</td></tr>`;
     });
     tables += `</table></div>`;
-    
+
     // Efficiency table
     tables += `<div class="data-table-wrap"><h3>Efficiency at Various Loads</h3><table>
         <tr><th>Load</th><th>PF</th><th>P_out (W)</th><th>P_cu (W)</th><th>P_core (W)</th><th>η (%)</th></tr>`;
     c.efficiency_data.forEach(e => {
-        tables += `<tr><td>${(e.load_fraction*100).toFixed(0)}%</td><td>${e.pf}</td><td>${e.P_out.toFixed(2)}</td><td>${e.P_cu.toFixed(4)}</td><td>${e.P_core.toFixed(4)}</td><td>${e.efficiency.toFixed(2)}</td></tr>`;
+        tables += `<tr><td>${fmt(e.load_fraction * 100, 0)}%</td><td>${e.pf}</td><td>${fmt(e.P_out, 2)}</td><td>${fmt(e.P_cu, 4)}</td><td>${fmt(e.P_core, 4)}</td><td>${fmt(e.efficiency, 2)}</td></tr>`;
     });
     tables += `</table></div>`;
-    
+
     document.getElementById('combinedTables').innerHTML = tables;
 }
 
@@ -477,7 +483,7 @@ function renderWaveforms(data) {
                 }
             });
         }
-        
+
         if (data.waveforms.short_circuit) {
             destroyChart('scWave');
             const w = data.waveforms.short_circuit;
@@ -509,13 +515,13 @@ function renderWaveforms(data) {
 function renderCircuitDiagram(data) {
     const nl = data.no_load || {};
     const sc = data.short_circuit || {};
-    const R1 = sc.R1_approx ? sc.R1_approx.toFixed(2) : '?';
-    const X1 = sc.X1_approx ? sc.X1_approx.toFixed(2) : '?';
-    const R2 = sc.R2_approx ? sc.R2_approx.toFixed(2) : '?';
-    const X2 = sc.X2_approx ? sc.X2_approx.toFixed(2) : '?';
-    const Rc = nl.R_c ? nl.R_c.toFixed(1) : '?';
-    const Xm = nl.X_m ? nl.X_m.toFixed(1) : '?';
-    
+    const R1 = sc.R1_approx != null ? fmt(sc.R1_approx, 2) : '?';
+    const X1 = sc.X1_approx != null ? fmt(sc.X1_approx, 2) : '?';
+    const R2 = sc.R2_approx != null ? fmt(sc.R2_approx, 2) : '?';
+    const X2 = sc.X2_approx != null ? fmt(sc.X2_approx, 2) : '?';
+    const Rc = nl.R_c != null ? fmt(nl.R_c, 1) : '?';
+    const Xm = nl.X_m != null ? fmt(nl.X_m, 1) : '?';
+
     document.getElementById('circuitDiagram').innerHTML = `
         <h3 style="font-family:var(--font-display);font-size:22px;margin-bottom:24px;">Approximate Equivalent Circuit (Referred to Primary)</h3>
         <svg viewBox="0 0 800 340" xmlns="http://www.w3.org/2000/svg" style="max-width:750px;">
@@ -576,46 +582,157 @@ function renderCircuitDiagram(data) {
             <!-- Title box -->
             <rect x="160" y="290" width="480" height="35" rx="6" fill="rgba(56,189,248,0.08)" stroke="rgba(56,189,248,0.2)" stroke-width="1"/>
             <text x="400" y="312" text-anchor="middle" fill="#38bdf8" font-family="IBM Plex Mono" font-size="12">
-                Zeq = ${sc.Z_eq ? sc.Z_eq.toFixed(2) : '?'}Ω  |  Req = ${sc.R_eq ? sc.R_eq.toFixed(2) : '?'}Ω  |  Xeq = ${sc.X_eq ? sc.X_eq.toFixed(2) : '?'}Ω
+                Zeq = ${sc.Z_eq != null ? fmt(sc.Z_eq, 2) : '?'}Ω  |  Req = ${sc.R_eq != null ? fmt(sc.R_eq, 2) : '?'}Ω  |  Xeq = ${sc.X_eq != null ? fmt(sc.X_eq, 2) : '?'}Ω
             </text>
         </svg>
     `;
 }
 
-// ── Report Preview & Export ──
+// ── Report Preview ──
 function renderReportPreview(data) {
     const preview = document.getElementById('reportPreview');
-    let html = '<h2 style="color:#0f3460;margin-bottom:16px;">Transformer Analysis Report</h2>';
-    
+    const ts = new Date().toLocaleString();
+    let html = `
+        <div style="text-align:center;border-bottom:3px solid #0f3460;padding-bottom:16px;margin-bottom:24px;">
+            <h2 style="color:#0f3460;font-size:22px;margin-bottom:4px;">Transformer Equivalent Circuit Analysis</h2>
+            <p style="color:#666;font-size:13px;">${ts}</p>
+        </div>`;
+
     if (data.no_load) {
-        html += '<h3 style="color:#0f3460;margin:16px 0 8px;">No-Load Test Results</h3>';
-        html += '<table style="width:100%;border-collapse:collapse;margin-bottom:16px;">';
-        html += '<tr style="background:#0f3460;color:#fff;"><th style="padding:8px;text-align:left;">Parameter</th><th style="padding:8px;">Value</th><th style="padding:8px;">Unit</th></tr>';
-        const nlParams = [
-            ['V_OC', data.no_load.V_oc, 'V'], ['I_0', data.no_load.I_o, 'A'], ['P_core', data.no_load.P_core, 'W'],
-            ['PF', data.no_load.PF_nl, ''], ['R_c', data.no_load.R_c, 'Ω'], ['X_m', data.no_load.X_m, 'Ω'],
-            ['I_c', data.no_load.I_c, 'A'], ['I_m', data.no_load.I_m, 'A']
+        const nl = data.no_load;
+        html += `<h3 style="color:#0f3460;margin:20px 0 10px;">1. No-Load (Open Circuit) Test Results</h3>`;
+        html += `<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+            <tr style="background:#0f3460;color:#fff;">
+                <th style="padding:8px 12px;text-align:left;">Parameter</th>
+                <th style="padding:8px 12px;text-align:left;">Symbol</th>
+                <th style="padding:8px 12px;text-align:right;">Value</th>
+                <th style="padding:8px 12px;">Unit</th>
+            </tr>`;
+        const nlRows = [
+            ['Open-Circuit Voltage', 'V_OC', fmt(nl.V_oc, 4), 'V'],
+            ['No-Load Current', 'I_0', fmt(nl.I_o, 6), 'A'],
+            ['Core Loss', 'P_core', fmt(nl.P_core, 4), 'W'],
+            ['No-Load Power Factor', 'cos φ₀', fmt(nl.PF_nl, 6), '—'],
+            ['No-Load Angle', 'φ₀', fmt(nl.theta_nl_deg, 2), '°'],
+            ['Core Loss Current', 'I_c', fmt(nl.I_c, 6), 'A'],
+            ['Magnetizing Current', 'I_m', fmt(nl.I_m, 6), 'A'],
+            ['Core Loss Resistance', 'R_c', fmt(nl.R_c, 2), 'Ω'],
+            ['Magnetizing Reactance', 'X_m', fmt(nl.X_m, 2), 'Ω'],
+            ['Apparent Power', 'S₀', fmt(nl.S_o, 4), 'VA'],
+            ['Reactive Power', 'Q₀', fmt(nl.Q_o, 4), 'VAR'],
+            ['Frequency', 'f', fmt(nl.frequency_Hz, 1), 'Hz'],
         ];
-        nlParams.forEach(([n,v,u]) => html += `<tr style="border-bottom:1px solid #ddd;"><td style="padding:6px 8px;">${n}</td><td style="padding:6px 8px;font-family:monospace;font-weight:600;color:#0f3460;">${typeof v === 'number' ? v.toFixed(6) : v}</td><td style="padding:6px 8px;">${u}</td></tr>`);
-        html += '</table>';
+        nlRows.forEach(([name, sym, val, unit], i) => {
+            const bg = i % 2 === 0 ? '#f8f9fa' : '#fff';
+            html += `<tr style="background:${bg};border-bottom:1px solid #ddd;">
+                <td style="padding:7px 12px;">${name}</td>
+                <td style="padding:7px 12px;font-family:monospace;color:#555;">${sym}</td>
+                <td style="padding:7px 12px;text-align:right;font-family:monospace;font-weight:600;color:#0f3460;">${val}</td>
+                <td style="padding:7px 12px;color:#777;">${unit}</td>
+            </tr>`;
+        });
+        html += `</table>`;
     }
-    
+
     if (data.short_circuit) {
-        html += '<h3 style="color:#0f3460;margin:16px 0 8px;">Short-Circuit Test Results</h3>';
-        html += '<table style="width:100%;border-collapse:collapse;margin-bottom:16px;">';
-        html += '<tr style="background:#0f3460;color:#fff;"><th style="padding:8px;text-align:left;">Parameter</th><th style="padding:8px;">Value</th><th style="padding:8px;">Unit</th></tr>';
-        const scParams = [
-            ['V_SC', data.short_circuit.V_sc, 'V'], ['I_SC', data.short_circuit.I_sc, 'A'], ['P_cu', data.short_circuit.P_cu, 'W'],
-            ['PF_SC', data.short_circuit.PF_sc, ''], ['Z_eq', data.short_circuit.Z_eq, 'Ω'], ['R_eq', data.short_circuit.R_eq, 'Ω'],
-            ['X_eq', data.short_circuit.X_eq, 'Ω']
+        const sc = data.short_circuit;
+        html += `<h3 style="color:#0f3460;margin:20px 0 10px;">2. Short-Circuit Test Results</h3>`;
+        html += `<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+            <tr style="background:#0f3460;color:#fff;">
+                <th style="padding:8px 12px;text-align:left;">Parameter</th>
+                <th style="padding:8px 12px;text-align:left;">Symbol</th>
+                <th style="padding:8px 12px;text-align:right;">Value</th>
+                <th style="padding:8px 12px;">Unit</th>
+            </tr>`;
+        const scRows = [
+            ['Short-Circuit Voltage', 'V_SC', fmt(sc.V_sc, 4), 'V'],
+            ['Short-Circuit Current', 'I_SC', fmt(sc.I_sc, 6), 'A'],
+            ['Copper Loss', 'P_cu', fmt(sc.P_cu, 4), 'W'],
+            ['SC Power Factor', 'cos φ_SC', fmt(sc.PF_sc, 6), '—'],
+            ['SC Angle', 'φ_SC', fmt(sc.theta_sc_deg, 2), '°'],
+            ['Equivalent Impedance', 'Z_eq', fmt(sc.Z_eq, 4), 'Ω'],
+            ['Equivalent Resistance', 'R_eq', fmt(sc.R_eq, 4), 'Ω'],
+            ['Equivalent Reactance', 'X_eq', fmt(sc.X_eq, 4), 'Ω'],
+            ['R₁ (approx)', 'R₁', fmt(sc.R1_approx, 4), 'Ω'],
+            ['X₁ (approx)', 'X₁', fmt(sc.X1_approx, 4), 'Ω'],
+            ['Apparent Power', 'S_SC', fmt(sc.S_sc, 4), 'VA'],
+            ['Frequency', 'f', fmt(sc.frequency_Hz, 1), 'Hz'],
         ];
-        scParams.forEach(([n,v,u]) => html += `<tr style="border-bottom:1px solid #ddd;"><td style="padding:6px 8px;">${n}</td><td style="padding:6px 8px;font-family:monospace;font-weight:600;color:#0f3460;">${typeof v === 'number' ? v.toFixed(6) : v}</td><td style="padding:6px 8px;">${u}</td></tr>`);
-        html += '</table>';
+        scRows.forEach(([name, sym, val, unit], i) => {
+            const bg = i % 2 === 0 ? '#f8f9fa' : '#fff';
+            html += `<tr style="background:${bg};border-bottom:1px solid #ddd;">
+                <td style="padding:7px 12px;">${name}</td>
+                <td style="padding:7px 12px;font-family:monospace;color:#555;">${sym}</td>
+                <td style="padding:7px 12px;text-align:right;font-family:monospace;font-weight:600;color:#0f3460;">${val}</td>
+                <td style="padding:7px 12px;color:#777;">${unit}</td>
+            </tr>`;
+        });
+        html += `</table>`;
     }
-    
+
+    if (data.combined) {
+        const c = data.combined;
+        html += `<h3 style="color:#0f3460;margin:20px 0 10px;">3. Combined Analysis</h3>`;
+        html += `<table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+            <tr style="background:#0f3460;color:#fff;">
+                <th style="padding:8px 12px;text-align:left;">Parameter</th>
+                <th style="padding:8px 12px;text-align:right;">Value</th>
+                <th style="padding:8px 12px;">Unit</th>
+            </tr>`;
+        const cRows = [
+            ['Rated Apparent Power', fmt(c.S_rated, 1), 'VA'],
+            ['Total Full-Load Losses', fmt(c.total_loss_fl, 2), 'W'],
+            ['Load for Max Efficiency', fmt(c.x_max_efficiency * 100, 1) + '%', 'of rated'],
+            ['Maximum Efficiency (UPF)', fmt(c.max_efficiency, 2) + '%', '—'],
+            ['Percent Impedance (%Z)', fmt(c.Z_percent, 2) + '%', '—'],
+            ['Percent Resistance (%R)', fmt(c.R_percent, 2) + '%', '—'],
+        ];
+        cRows.forEach(([name, val, unit], i) => {
+            const bg = i % 2 === 0 ? '#f8f9fa' : '#fff';
+            html += `<tr style="background:${bg};border-bottom:1px solid #ddd;">
+                <td style="padding:7px 12px;">${name}</td>
+                <td style="padding:7px 12px;text-align:right;font-family:monospace;font-weight:600;color:#0f3460;">${val}</td>
+                <td style="padding:7px 12px;color:#777;">${unit}</td>
+            </tr>`;
+        });
+        html += `</table>`;
+
+        // VR table in report preview
+        html += `<h4 style="color:#0f3460;margin:16px 0 8px;">Voltage Regulation</h4>
+            <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+            <tr style="background:#0f3460;color:#fff;">
+                <th style="padding:8px 12px;">Power Factor</th>
+                <th style="padding:8px 12px;text-align:right;">VR Lagging (%)</th>
+                <th style="padding:8px 12px;text-align:right;">VR Leading (%)</th>
+            </tr>`;
+        c.voltage_regulation.forEach((vr, i) => {
+            const bg = i % 2 === 0 ? '#f8f9fa' : '#fff';
+            html += `<tr style="background:${bg};border-bottom:1px solid #ddd;">
+                <td style="padding:7px 12px;">${vr.pf}</td>
+                <td style="padding:7px 12px;text-align:right;font-family:monospace;font-weight:600;color:#0f3460;">${fmt(vr.vr_lagging, 4)}</td>
+                <td style="padding:7px 12px;text-align:right;font-family:monospace;font-weight:600;color:#0f3460;">${fmt(vr.vr_leading, 4)}</td>
+            </tr>`;
+        });
+        html += `</table>`;
+    }
+
+    if (data.harmonics) {
+        if (data.harmonics.no_load) {
+            const h = data.harmonics.no_load;
+            html += `<h3 style="color:#0f3460;margin:20px 0 10px;">4. Harmonic Analysis — No-Load</h3>
+                <p style="margin-bottom:8px;">THD Voltage: <strong>${h.thd_voltage}%</strong> &nbsp;|&nbsp; THD Current: <strong>${h.thd_current}%</strong></p>`;
+        }
+        if (data.harmonics.short_circuit) {
+            const h = data.harmonics.short_circuit;
+            html += `<h3 style="color:#0f3460;margin:20px 0 10px;">5. Harmonic Analysis — Short-Circuit</h3>
+                <p style="margin-bottom:8px;">THD Voltage: <strong>${h.thd_voltage}%</strong> &nbsp;|&nbsp; THD Current: <strong>${h.thd_current}%</strong></p>`;
+        }
+    }
+
     preview.innerHTML = html;
 }
 
+// ── Export PDF (open in new window + print) ──
 async function exportReport() {
     if (!analysisResults) return;
     try {
@@ -630,13 +747,12 @@ async function exportReport() {
                 sc_harmonics: analysisResults.harmonics?.short_circuit,
             })
         });
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `transformer_report_${new Date().toISOString().slice(0,10)}.html`;
-        a.click();
-        window.URL.revokeObjectURL(url);
+        const html = await response.text();
+        const win = window.open('', '_blank');
+        win.document.write(html);
+        win.document.close();
+        win.focus();
+        setTimeout(() => win.print(), 600);
     } catch(err) { showAlert('Export failed: ' + err.message, 'error'); }
 }
 
