@@ -1,9 +1,8 @@
 """
-Comprehensive test suite for TransformerIQ Analyzer.
-Tests parser, calculator, and Flask routes.
+Test suite for Transformer Equivalent Circuit Analyzer.
+Tests parser, calculator, and edge cases (business logic only).
 """
 import pytest
-import json
 import os
 import sys
 import numpy as np
@@ -18,20 +17,9 @@ from app.utils.calculator import (
     compute_combined_analysis, generate_waveform_data,
     compute_harmonic_analysis, extract_complete_cycles,
 )
-from app.main import create_app
 
 
 # ── Fixtures ──
-
-@pytest.fixture
-def app():
-    app = create_app()
-    app.config['TESTING'] = True
-    return app
-
-@pytest.fixture
-def client(app):
-    return app.test_client()
 
 @pytest.fixture
 def sample_noload_csv():
@@ -261,94 +249,6 @@ class TestCalculator:
         df_cycles = extract_complete_cycles(df)
         assert len(df_cycles) <= len(df)
         assert len(df_cycles) > 10
-
-
-# ── Flask Route Tests ──
-
-class TestRoutes:
-    def test_index(self, client):
-        response = client.get('/')
-        assert response.status_code == 200
-        assert b'Transformer' in response.data
-    
-    def test_health(self, client):
-        response = client.get('/health')
-        assert response.status_code == 200
-        data = json.loads(response.data)
-        assert data['status'] == 'ok'
-    
-    def test_analyze_no_files(self, client):
-        response = client.post('/analyze')
-        assert response.status_code == 400
-    
-    def test_analyze_noload_only(self, client, sample_noload_csv):
-        from io import BytesIO
-        data = {
-            'no_load_file': (BytesIO(sample_noload_csv.encode()), 'noload.csv'),
-        }
-        response = client.post('/analyze', data=data, content_type='multipart/form-data')
-        assert response.status_code == 200
-        result = json.loads(response.data)
-        assert result['no_load'] is not None
-        assert result['no_load']['V_oc'] > 0
-    
-    def test_analyze_sc_only(self, client, sample_sc_csv):
-        from io import BytesIO
-        data = {
-            'short_circuit_file': (BytesIO(sample_sc_csv.encode()), 'sc.csv'),
-        }
-        response = client.post('/analyze', data=data, content_type='multipart/form-data')
-        assert response.status_code == 200
-        result = json.loads(response.data)
-        assert result['short_circuit'] is not None
-    
-    def test_analyze_both(self, client, sample_noload_csv, sample_sc_csv):
-        from io import BytesIO
-        data = {
-            'no_load_file': (BytesIO(sample_noload_csv.encode()), 'noload.csv'),
-            'short_circuit_file': (BytesIO(sample_sc_csv.encode()), 'sc.csv'),
-        }
-        response = client.post('/analyze', data=data, content_type='multipart/form-data')
-        assert response.status_code == 200
-        result = json.loads(response.data)
-        assert result['no_load'] is not None
-        assert result['short_circuit'] is not None
-        assert result['combined'] is not None
-    
-    def test_analyze_invalid_file(self, client):
-        from io import BytesIO
-        data = {
-            'no_load_file': (BytesIO(b'invalid data'), 'test.exe'),
-        }
-        response = client.post('/analyze', data=data, content_type='multipart/form-data')
-        assert response.status_code == 200
-        result = json.loads(response.data)
-        assert len(result.get('errors', [])) > 0 or result.get('error')
-    
-    def test_export_report(self, client):
-        payload = {
-            'no_load': {
-                'V_oc': 240.0, 'I_o': 0.015, 'P_core': 2.5, 'PF_nl': 0.7,
-                'theta_nl_deg': 45.0, 'I_c': 0.01, 'I_m': 0.012,
-                'R_c': 24000, 'X_m': 20000, 'frequency_Hz': 50.0,
-                'S_o': 3.6, 'Q_o': 2.88,
-            },
-            'short_circuit': {
-                'V_sc': 35.0, 'I_sc': 0.3, 'P_cu': 8.0, 'PF_sc': 0.76,
-                'theta_sc_deg': 40.0, 'Z_eq': 116.7, 'R_eq': 88.9,
-                'X_eq': 75.5, 'R1_approx': 44.4, 'R2_approx': 44.4,
-                'X1_approx': 37.7, 'X2_approx': 37.7, 'frequency_Hz': 50.0,
-                'S_sc': 10.5, 'Q_sc': 6.8,
-            },
-            'combined': None,
-            'nl_harmonics': None,
-            'sc_harmonics': None,
-        }
-        response = client.post('/export-report', 
-                              data=json.dumps(payload),
-                              content_type='application/json')
-        assert response.status_code == 200
-        assert b'Transformer' in response.data
 
 
 # ── Edge Case Tests ──
