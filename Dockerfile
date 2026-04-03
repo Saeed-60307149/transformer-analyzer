@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application
 COPY . .
+RUN chmod +x start.sh
 
 # Expose port (Railway overrides with $PORT)
 EXPOSE 5000
@@ -17,4 +18,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s \
     CMD python -c "import urllib.request, os; urllib.request.urlopen('http://localhost:' + os.environ.get('PORT', '5000') + '/health')" || exit 1
 
 # Run with gunicorn in production (Railway sets $PORT)
-CMD ["/bin/sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-5000} --workers 1 --timeout 120 wsgi:app"]
+CMD ["./start.sh"]
