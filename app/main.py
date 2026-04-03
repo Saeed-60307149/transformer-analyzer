@@ -9,7 +9,7 @@ import numpy as np
 from flask import Flask, render_template, request, jsonify, make_response
 from flask.json.provider import DefaultJSONProvider
 
-from app.utils.parser import parse_transformer_data, detect_test_type
+from app.utils.parser import parse_transformer_data, validate_test_data
 from app.utils.calculator import (
     analyze_no_load_test,
     analyze_short_circuit_test,
@@ -91,46 +91,50 @@ def create_app():
 
             if nl_file and nl_file.filename:
                 if not allowed_file(nl_file.filename):
-                    results['errors'].append(f'Invalid file type for no-load: {nl_file.filename}')
+                    results['errors'].append(
+                        f'Invalid file type: {nl_file.filename}. '
+                        'Please upload a CSV, TSV, TXT, or DAT file.'
+                    )
                 else:
                     try:
                         content = nl_file.read().decode('utf-8', errors='replace')
                         nl_df = parse_transformer_data(content, nl_file.filename)
 
-                        detected_type = detect_test_type(nl_df)
-                        if detected_type != 'no_load':
-                            results['warnings'].append(
-                                f'No-load file "{nl_file.filename}" appears to contain '
-                                f'{detected_type.replace("_", " ")} data. '
-                                'Processing as no-load test as specified.'
+                        valid, reason = validate_test_data(nl_df, 'no_load')
+                        if not valid:
+                            results['errors'].append(
+                                f'Invalid file for No-Load test: {reason} '
+                                'No-Load test requires high voltage and very low current data.'
                             )
-
-                        results['no_load'] = analyze_no_load_test(nl_df)
-                        results['waveforms']['no_load'] = generate_waveform_data(nl_df)
-                        results['harmonics']['no_load'] = compute_harmonic_analysis(nl_df)
+                        else:
+                            results['no_load'] = analyze_no_load_test(nl_df)
+                            results['waveforms']['no_load'] = generate_waveform_data(nl_df)
+                            results['harmonics']['no_load'] = compute_harmonic_analysis(nl_df)
                     except Exception as e:
                         results['errors'].append(f'Error parsing no-load file: {str(e)}')
                         traceback.print_exc()
 
             if sc_file and sc_file.filename:
                 if not allowed_file(sc_file.filename):
-                    results['errors'].append(f'Invalid file type for short-circuit: {sc_file.filename}')
+                    results['errors'].append(
+                        f'Invalid file type: {sc_file.filename}. '
+                        'Please upload a CSV, TSV, TXT, or DAT file.'
+                    )
                 else:
                     try:
                         content = sc_file.read().decode('utf-8', errors='replace')
                         sc_df = parse_transformer_data(content, sc_file.filename)
 
-                        detected_type = detect_test_type(sc_df)
-                        if detected_type != 'short_circuit':
-                            results['warnings'].append(
-                                f'Short-circuit file "{sc_file.filename}" appears to contain '
-                                f'{detected_type.replace("_", " ")} data. '
-                                'Processing as short-circuit test as specified.'
+                        valid, reason = validate_test_data(sc_df, 'short_circuit')
+                        if not valid:
+                            results['errors'].append(
+                                f'Invalid file for Short-Circuit test: {reason} '
+                                'Short-Circuit test requires low voltage and higher current data.'
                             )
-
-                        results['short_circuit'] = analyze_short_circuit_test(sc_df)
-                        results['waveforms']['short_circuit'] = generate_waveform_data(sc_df)
-                        results['harmonics']['short_circuit'] = compute_harmonic_analysis(sc_df)
+                        else:
+                            results['short_circuit'] = analyze_short_circuit_test(sc_df)
+                            results['waveforms']['short_circuit'] = generate_waveform_data(sc_df)
+                            results['harmonics']['short_circuit'] = compute_harmonic_analysis(sc_df)
                     except Exception as e:
                         results['errors'].append(f'Error parsing short-circuit file: {str(e)}')
                         traceback.print_exc()

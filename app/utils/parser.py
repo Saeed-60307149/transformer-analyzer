@@ -231,24 +231,47 @@ def parse_transformer_data(file_content: str, filename: str = '') -> pd.DataFram
     return df
 
 
-def detect_test_type(df: pd.DataFrame) -> str:
+def validate_test_data(df: pd.DataFrame, expected_type: str) -> tuple:
     """
-    Auto-detect whether data is from a No-Load or Short-Circuit test.
+    Strictly validate whether data matches the expected test type.
 
-    No-Load: Full rated voltage applied to primary (typically >50 V RMS)
-    Short-Circuit: Reduced voltage applied (~5-15% of rated, typically <50 V RMS)
+    No-Load test characteristics:
+      - High voltage: V_rms > 50 V (full rated primary voltage)
+      - Very low current: I_rms < 0.5 A (only magnetizing/core-loss current flows)
 
-    The voltage magnitude is the most reliable physical indicator:
-    - No-load test always applies full line voltage to the primary
-    - Short-circuit test uses a small fraction to limit current
+    Short-Circuit test characteristics:
+      - Low voltage: V_rms < 50 V (reduced voltage to limit current)
+      - Measurable current: I_rms > 0.05 A
+
+    Returns (True, '') if valid, or (False, reason_string) if invalid.
     """
     v_rms = np.sqrt(np.mean(df['Voltage_V'].values ** 2))
     i_rms = np.sqrt(np.mean(df['Current_A'].values ** 2))
-    impedance_magnitude = v_rms / i_rms if i_rms > 0 else float('inf')
 
-    # Primary heuristic: voltage level
-    # No-load: full primary voltage applied (>50 V RMS for lab transformers)
-    # Short-circuit: reduced voltage to limit current (<50 V RMS)
-    if v_rms > 50:
-        return 'no_load'
-    return 'short_circuit'
+    if expected_type == 'no_load':
+        if v_rms <= 50:
+            return False, (
+                f'Measured V_rms = {v_rms:.2f} V — expected > 50 V for a No-Load test. '
+                'This looks like Short-Circuit test data uploaded in the wrong slot.'
+            )
+        if i_rms >= 0.5:
+            return False, (
+                f'Measured I_rms = {i_rms:.4f} A — expected < 0.5 A for a No-Load test. '
+                'This looks like Short-Circuit test data uploaded in the wrong slot.'
+            )
+        return True, ''
+
+    if expected_type == 'short_circuit':
+        if v_rms > 50:
+            return False, (
+                f'Measured V_rms = {v_rms:.2f} V — expected < 50 V for a Short-Circuit test. '
+                'This looks like No-Load test data uploaded in the wrong slot.'
+            )
+        if i_rms < 0.05:
+            return False, (
+                f'Measured I_rms = {i_rms:.5f} A — expected > 0.05 A for a Short-Circuit test. '
+                'This looks like No-Load test data uploaded in the wrong slot.'
+            )
+        return True, ''
+
+    return False, f'Unknown expected type: {expected_type}'

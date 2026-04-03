@@ -11,7 +11,7 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.utils.parser import parse_transformer_data, detect_test_type, detect_separator, clean_content
+from app.utils.parser import parse_transformer_data, validate_test_data, detect_separator, clean_content
 from app.utils.calculator import (
     compute_rms, compute_average_power, detect_frequency,
     analyze_no_load_test, analyze_short_circuit_test,
@@ -143,13 +143,27 @@ class TestParser:
     
     def test_detect_noload(self, sample_noload_csv):
         df = parse_transformer_data(sample_noload_csv)
-        test_type = detect_test_type(df)
-        assert test_type == 'no_load'
-    
+        valid, reason = validate_test_data(df, 'no_load')
+        assert valid is True
+        assert reason == ''
+
     def test_detect_shortcircuit(self, sample_sc_csv):
         df = parse_transformer_data(sample_sc_csv)
-        test_type = detect_test_type(df)
-        assert test_type == 'short_circuit'
+        valid, reason = validate_test_data(df, 'short_circuit')
+        assert valid is True
+        assert reason == ''
+
+    def test_validate_wrong_type_nl_in_sc_slot(self, sample_noload_csv):
+        df = parse_transformer_data(sample_noload_csv)
+        valid, reason = validate_test_data(df, 'short_circuit')
+        assert valid is False
+        assert 'V_rms' in reason
+
+    def test_validate_wrong_type_sc_in_nl_slot(self, sample_sc_csv):
+        df = parse_transformer_data(sample_sc_csv)
+        valid, reason = validate_test_data(df, 'no_load')
+        assert valid is False
+        assert 'V_rms' in reason
     
     def test_parse_empty_raises(self):
         with pytest.raises(ValueError):
