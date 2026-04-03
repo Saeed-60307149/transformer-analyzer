@@ -247,11 +247,8 @@ def detect_test_type(df: pd.DataFrame) -> str:
     impedance_magnitude = v_rms / i_rms if i_rms > 0 else float('inf')
 
     # Primary heuristic: voltage level
-    # No-load: full primary voltage (>50 V for typical lab transformers)
-    # Short-circuit: reduced voltage (<50 V)
+    # No-load: full primary voltage applied (>50 V RMS for lab transformers)
+    # Short-circuit: reduced voltage to limit current (<50 V RMS)
     if v_rms > 50:
-        return 'no_load'
-    # Fallback: impedance ratio for edge cases (e.g. very small transformers)
-    if impedance_magnitude > 100:
         return 'no_load'
     return 'short_circuit'
