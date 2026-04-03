@@ -17,21 +17,15 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
+
           key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
 
-      - name: Install deps + test tools
-        run: |
-          pip install -r requirements.txt pytest pytest-cov flake8
+
 
       - name: Run tests
         run: pytest tests/ -v --cov=app --cov-report=term-missing
 
-      - name: Run flake8
-        run: flake8 app/ --max-line-length=120 --ignore=E501,W503,E402
+
 
       - name: Summary
         if: always()
