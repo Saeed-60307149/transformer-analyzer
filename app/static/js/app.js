@@ -170,17 +170,36 @@ function renderKPIs(data) {
     `).join('');
 }
 
+// ── Chart placeholder helpers (never destroy canvas DOM elements) ──
+function showNoData(chartId) {
+    const canvas = document.getElementById(chartId);
+    if (!canvas) return;
+    canvas.style.display = 'none';
+    if (!canvas.nextElementSibling || !canvas.nextElementSibling.classList.contains('no-data-msg')) {
+        const div = document.createElement('div');
+        div.className = 'no-data-msg';
+        div.style.cssText = 'display:flex;align-items:center;justify-content:center;height:180px;color:#64748b;font-size:13px;';
+        div.textContent = 'Upload both test files to see this chart';
+        canvas.parentNode.insertBefore(div, canvas.nextSibling);
+    }
+}
+function clearNoData(chartId) {
+    const canvas = document.getElementById(chartId);
+    if (!canvas) return;
+    canvas.style.display = '';
+    const sibling = canvas.nextElementSibling;
+    if (sibling && sibling.classList.contains('no-data-msg')) sibling.remove();
+}
+
 // ── Overview Charts ──
 function renderOverviewCharts(data) {
-    const noDataMsg = '<div style="display:flex;align-items:center;justify-content:center;height:180px;color:#64748b;font-size:13px;">Upload both test files to see this chart</div>';
-
     // Efficiency + VR charts need combined data
     if (!data.combined) {
-        ['efficiencyChart', 'vrChart'].forEach(id => {
-            const card = document.getElementById(id).closest('.chart-card');
-            card.innerHTML = `<h3>${card.querySelector('h3').textContent}</h3>${noDataMsg}`;
-        });
+        showNoData('efficiencyChart');
+        showNoData('vrChart');
     } else {
+        clearNoData('efficiencyChart');
+        clearNoData('vrChart');
         // Efficiency Chart
         destroyChart('efficiency');
         const ctx = document.getElementById('efficiencyChart').getContext('2d');
@@ -217,6 +236,7 @@ function renderOverviewCharts(data) {
 
     // Loss Distribution — needs both tests
     if (data.no_load && data.short_circuit) {
+        clearNoData('lossChart');
         destroyChart('loss');
         const ctx3 = document.getElementById('lossChart').getContext('2d');
         charts['loss'] = new Chart(ctx3, {
@@ -228,12 +248,12 @@ function renderOverviewCharts(data) {
             options: { responsive: true, cutout: '60%', plugins: { legend: { position: 'bottom' } } }
         });
     } else {
-        const lossCard = document.getElementById('lossChart').closest('.chart-card');
-        lossCard.innerHTML = `<h3>${lossCard.querySelector('h3').textContent}</h3>${noDataMsg}`;
+        showNoData('lossChart');
     }
 
     // Power Triangle — needs SC
     if (data.short_circuit) {
+        clearNoData('powerChart');
         destroyChart('power');
         const ctx4 = document.getElementById('powerChart').getContext('2d');
         const sc = data.short_circuit;
@@ -246,8 +266,7 @@ function renderOverviewCharts(data) {
             options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { title: { display: true, text: 'Power (W/VA/VAR)' } } } }
         });
     } else {
-        const powerCard = document.getElementById('powerChart').closest('.chart-card');
-        powerCard.innerHTML = `<h3>${powerCard.querySelector('h3').textContent}</h3>${noDataMsg}`;
+        showNoData('powerChart');
     }
 }
 

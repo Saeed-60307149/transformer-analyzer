@@ -235,20 +235,23 @@ def detect_test_type(df: pd.DataFrame) -> str:
     """
     Auto-detect whether data is from a No-Load or Short-Circuit test.
 
-    No-Load: High voltage (100s of V), very low current (mA range)
-    Short-Circuit: Low voltage (10s of V), higher current (100s of mA)
+    No-Load: Full rated voltage applied to primary (typically >50 V RMS)
+    Short-Circuit: Reduced voltage applied (~5-15% of rated, typically <50 V RMS)
+
+    The voltage magnitude is the most reliable physical indicator:
+    - No-load test always applies full line voltage to the primary
+    - Short-circuit test uses a small fraction to limit current
     """
     v_rms = np.sqrt(np.mean(df['Voltage_V'].values ** 2))
     i_rms = np.sqrt(np.mean(df['Current_A'].values ** 2))
-
-    # No-load: V_rms >> I_rms (voltage is high, current is very small)
-    # Short-circuit: V_rms is relatively low, I_rms is relatively high
     impedance_magnitude = v_rms / i_rms if i_rms > 0 else float('inf')
 
-    # For a typical transformer:
-    # No-load: impedance is very high (>500 ohms)
-    # Short-circuit: impedance is relatively low (<200 ohms)
-    if impedance_magnitude > 300:
+    # Primary heuristic: voltage level
+    # No-load: full primary voltage (>50 V for typical lab transformers)
+    # Short-circuit: reduced voltage (<50 V)
+    if v_rms > 50:
         return 'no_load'
-    else:
-        return 'short_circuit'
+    # Fallback: impedance ratio for edge cases (e.g. very small transformers)
+    if impedance_magnitude > 100:
+        return 'no_load'
+    return 'short_circuit'
