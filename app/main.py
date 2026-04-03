@@ -160,6 +160,6 @@ def create_app():
     def health():
         return jsonify({'status': 'ok', 'timestamp': datetime.now().isoformat()})
 
-    return app\n
+    return app
 
 
