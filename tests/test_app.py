@@ -390,7 +390,7 @@ class TestEdgeCases:
             content += f"{ti},{v:.2f},{i:.6f},{v*i:.6f}\n"
         df = parse_transformer_data(content)
         result = analyze_no_load_test(df)
-        assert result['V_oc'] > 200  # Should still get reasonable RMS
+        assert result['V_oc'] > 150  # RMS of 240V peak ≈ 169.7V, noise shouldn't drop it below 150
     
     def test_60hz_data(self):
         """Test with 60Hz signal."""
