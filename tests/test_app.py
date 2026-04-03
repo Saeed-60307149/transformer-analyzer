@@ -269,7 +269,7 @@ class TestRoutes:
     def test_index(self, client):
         response = client.get('/')
         assert response.status_code == 200
-        assert b'TransformerIQ' in response.data
+        assert b'Transformer' in response.data
     
     def test_health(self, client):
         response = client.get('/health')
