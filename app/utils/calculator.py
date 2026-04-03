@@ -11,7 +11,7 @@ Combined → Full equivalent circuit, voltage regulation, efficiency
 """
 import numpy as np
 import pandas as pd
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional
 
 
 def compute_rms(signal: np.ndarray) -> float:
@@ -19,7 +19,7 @@ def compute_rms(signal: np.ndarray) -> float:
     return np.sqrt(np.mean(signal ** 2))
 
 
-def compute_average_power(voltage: np.ndarray, current: np.ndarray, 
+def compute_average_power(voltage: np.ndarray, current: np.ndarray,
                           power_col: Optional[np.ndarray] = None) -> float:
     """
     Compute average (real) power.
@@ -38,7 +38,7 @@ def detect_frequency(time_ms: np.ndarray, voltage: np.ndarray) -> float:
     """
     # Zero crossings (positive-going)
     sign_changes = np.where(np.diff(np.sign(voltage)) > 0)[0]
-    
+
     if len(sign_changes) < 2:
         # Fallback: try FFT
         dt = np.mean(np.diff(time_ms)) / 1000.0  # Convert to seconds
@@ -52,11 +52,11 @@ def detect_frequency(time_ms: np.ndarray, voltage: np.ndarray) -> float:
             peak_idx = np.argmax(fft_vals[1:]) + 1
             return freqs[peak_idx]
         return 50.0
-    
+
     # Average period from zero crossings
     periods = np.diff(time_ms[sign_changes]) / 1000.0  # Convert to seconds
     avg_period = np.mean(periods)
-    
+
     if avg_period > 0:
         freq = 1.0 / avg_period
         # Snap to nearest standard frequency
@@ -65,7 +65,7 @@ def detect_frequency(time_ms: np.ndarray, voltage: np.ndarray) -> float:
         elif 55 < freq <= 65:
             return 60.0
         return freq
-    
+
     return 50.0
 
 
@@ -74,30 +74,29 @@ def extract_complete_cycles(df: pd.DataFrame) -> pd.DataFrame:
     Extract only complete cycles from the waveform data for accurate RMS calculation.
     """
     voltage = df['Voltage_V'].values
-    time_ms = df['Time_ms'].values
-    
+
     # Find positive-going zero crossings
     sign_changes = np.where(
         (voltage[:-1] <= 0) & (voltage[1:] > 0)
     )[0]
-    
+
     if len(sign_changes) >= 2:
         start_idx = sign_changes[0]
         end_idx = sign_changes[-1]
         return df.iloc[start_idx:end_idx + 1].reset_index(drop=True)
-    
+
     return df
 
 
 def analyze_no_load_test(df: pd.DataFrame, rated_voltage: Optional[float] = None) -> Dict[str, Any]:
     """
     Analyze No-Load Test data to determine core branch parameters.
-    
+
     In no-load test:
     - Primary is excited at rated voltage
     - Secondary is open-circuited
     - Measured: V_oc, I_o (no-load current), P_o (core loss)
-    
+
     Parameters calculated:
     - P_core: Core loss (iron loss) = average power
     - V_oc: Open-circuit voltage (RMS)
@@ -110,43 +109,43 @@ def analyze_no_load_test(df: pd.DataFrame, rated_voltage: Optional[float] = None
     """
     # Extract complete cycles for accurate RMS
     df_cycles = extract_complete_cycles(df)
-    
+
     voltage = df_cycles['Voltage_V'].values
     current = df_cycles['Current_A'].values
     power = df_cycles['Power_W'].values if 'Power_W' in df_cycles.columns else None
     time_ms = df_cycles['Time_ms'].values
-    
+
     # Compute RMS values
     V_oc = compute_rms(voltage)
     I_o = compute_rms(current)
-    
+
     # Compute average power (core loss)
     P_core = abs(compute_average_power(voltage, current, power))
-    
+
     # Detect frequency
     frequency = detect_frequency(time_ms, voltage)
-    
+
     # Power factor
     S_o = V_oc * I_o  # Apparent power
     PF_nl = P_core / S_o if S_o > 0 else 0
     PF_nl = min(PF_nl, 1.0)  # Clamp to valid range
-    
+
     # No-load current components
     I_c = P_core / V_oc if V_oc > 0 else 0  # Core loss component (in-phase)
     I_m_sq = I_o**2 - I_c**2
     I_m = np.sqrt(max(I_m_sq, 0))  # Magnetizing component (quadrature)
-    
+
     # Core branch parameters
     R_c = V_oc / I_c if I_c > 0 else float('inf')  # Core loss resistance
     X_m = V_oc / I_m if I_m > 0 else float('inf')  # Magnetizing reactance
-    
+
     # No-load angle
     theta_nl = np.arccos(PF_nl) if PF_nl <= 1 else 0
-    
+
     # Peak values
     V_peak = np.max(np.abs(voltage))
     I_peak = np.max(np.abs(current))
-    
+
     return {
         'test_type': 'No-Load Test',
         'V_oc': round(V_oc, 4),
@@ -171,12 +170,12 @@ def analyze_no_load_test(df: pd.DataFrame, rated_voltage: Optional[float] = None
 def analyze_short_circuit_test(df: pd.DataFrame, rated_current: Optional[float] = None) -> Dict[str, Any]:
     """
     Analyze Short-Circuit Test data to determine series branch parameters.
-    
+
     In short-circuit test:
     - Secondary is short-circuited
     - Reduced voltage applied to primary until rated current flows
     - Measured: V_sc, I_sc (rated current), P_sc (copper loss)
-    
+
     Parameters calculated:
     - P_cu: Copper loss = average power
     - V_sc: Short-circuit voltage (RMS)
@@ -188,46 +187,46 @@ def analyze_short_circuit_test(df: pd.DataFrame, rated_current: Optional[float] 
     """
     # Extract complete cycles
     df_cycles = extract_complete_cycles(df)
-    
+
     voltage = df_cycles['Voltage_V'].values
     current = df_cycles['Current_A'].values
     power = df_cycles['Power_W'].values if 'Power_W' in df_cycles.columns else None
     time_ms = df_cycles['Time_ms'].values
-    
+
     # Compute RMS values
     V_sc = compute_rms(voltage)
     I_sc = compute_rms(current)
-    
+
     # Compute average power (copper loss)
     P_cu = abs(compute_average_power(voltage, current, power))
-    
+
     # Detect frequency
     frequency = detect_frequency(time_ms, voltage)
-    
+
     # Power factor
     S_sc = V_sc * I_sc
     PF_sc = P_cu / S_sc if S_sc > 0 else 0
     PF_sc = min(PF_sc, 1.0)
-    
+
     # Equivalent circuit parameters (referred to primary)
     Z_eq = V_sc / I_sc if I_sc > 0 else 0
     R_eq = P_cu / (I_sc**2) if I_sc > 0 else 0
     X_eq_sq = Z_eq**2 - R_eq**2
     X_eq = np.sqrt(max(X_eq_sq, 0))
-    
+
     # Short-circuit angle
     theta_sc = np.arccos(PF_sc) if PF_sc <= 1 else 0
-    
+
     # Peak values
     V_peak = np.max(np.abs(voltage))
     I_peak = np.max(np.abs(current))
-    
+
     # Per-winding values (assuming equal distribution)
     R1 = R_eq / 2
     R2 = R_eq / 2
     X1 = X_eq / 2
     X2 = X_eq / 2
-    
+
     return {
         'test_type': 'Short-Circuit Test',
         'V_sc': round(V_sc, 4),
@@ -255,7 +254,7 @@ def analyze_short_circuit_test(df: pd.DataFrame, rated_current: Optional[float] 
 def compute_combined_analysis(nl_results: Dict, sc_results: Dict) -> Dict[str, Any]:
     """
     Compute combined analysis from both tests.
-    
+
     Calculates:
     - Complete equivalent circuit
     - Voltage regulation at various power factors
@@ -267,12 +266,10 @@ def compute_combined_analysis(nl_results: Dict, sc_results: Dict) -> Dict[str, A
     P_cu_fl = sc_results['P_cu']  # Full-load copper loss
     R_eq = sc_results['R_eq']
     X_eq = sc_results['X_eq']
-    R_c = nl_results['R_c']
-    X_m = nl_results['X_m']
-    
+
     # Rated apparent power
     S_rated = V_rated * I_rated
-    
+
     # Voltage regulation at various power factors
     vr_data = []
     pf_values = [1.0, 0.9, 0.8, 0.7, 0.6]
@@ -287,7 +284,7 @@ def compute_combined_analysis(nl_results: Dict, sc_results: Dict) -> Dict[str, A
             'vr_lagging': round(vr_lag, 4),
             'vr_leading': round(vr_lead, 4),
         })
-    
+
     # Efficiency at various loads
     eff_data = []
     load_fractions = [0.25, 0.5, 0.75, 1.0, 1.25]
@@ -307,19 +304,19 @@ def compute_combined_analysis(nl_results: Dict, sc_results: Dict) -> Dict[str, A
                 'P_total_loss': round(P_total_loss, 4),
                 'efficiency': round(eff, 4),
             })
-    
+
     # Maximum efficiency condition
     # η_max when x²·P_cu = P_core → x = sqrt(P_core / P_cu_fl)
     x_max_eff = np.sqrt(P_core / P_cu_fl) if P_cu_fl > 0 else 1.0
     P_out_max = x_max_eff * S_rated * 1.0  # at unity PF
     P_loss_max = 2 * P_core  # At max efficiency, P_core = x²·P_cu
     eff_max = (P_out_max / (P_out_max + P_loss_max)) * 100 if (P_out_max + P_loss_max) > 0 else 0
-    
+
     # Percent impedance
     Z_percent = (sc_results['V_sc'] / V_rated) * 100 if V_rated > 0 else 0
     R_percent = (R_eq * I_rated / V_rated) * 100 if V_rated > 0 else 0
     X_percent = (X_eq * I_rated / V_rated) * 100 if V_rated > 0 else 0
-    
+
     return {
         'S_rated': round(S_rated, 4),
         'V_rated': round(V_rated, 4),
@@ -344,7 +341,7 @@ def generate_waveform_data(df: pd.DataFrame) -> Dict[str, list]:
         df_plot = df.iloc[::step].copy()
     else:
         df_plot = df.copy()
-    
+
     return {
         'time': df_plot['Time_ms'].round(4).tolist(),
         'voltage': df_plot['Voltage_V'].round(4).tolist(),
@@ -361,31 +358,31 @@ def compute_harmonic_analysis(df: pd.DataFrame) -> Dict[str, Any]:
     voltage = df_cycles['Voltage_V'].values
     current = df_cycles['Current_A'].values
     time_ms = df_cycles['Time_ms'].values
-    
+
     dt = np.mean(np.diff(time_ms)) / 1000.0  # seconds
     n = len(voltage)
-    
+
     if n < 10 or dt <= 0:
         return {'voltage_harmonics': [], 'current_harmonics': [], 'thd_voltage': 0, 'thd_current': 0}
-    
+
     # FFT
     v_fft = np.abs(np.fft.rfft(voltage)) * 2 / n
     i_fft = np.abs(np.fft.rfft(current)) * 2 / n
     freqs = np.fft.rfftfreq(n, d=dt)
-    
+
     # Find fundamental frequency index
     fund_freq = detect_frequency(time_ms, voltage)
     fund_idx = np.argmin(np.abs(freqs - fund_freq))
-    
+
     if fund_idx == 0:
         fund_idx = 1
-    
+
     # Extract harmonics (up to 15th)
     v_harmonics = []
     i_harmonics = []
     v_fund = v_fft[fund_idx]
     i_fund = i_fft[fund_idx]
-    
+
     for h in range(1, 16):
         idx = h * fund_idx
         if idx >= len(v_fft):
@@ -394,10 +391,10 @@ def compute_harmonic_analysis(df: pd.DataFrame) -> Dict[str, Any]:
         window = max(1, fund_idx // 4)
         start = max(0, idx - window)
         end = min(len(v_fft), idx + window + 1)
-        
+
         v_mag = np.max(v_fft[start:end])
         i_mag = np.max(i_fft[start:end])
-        
+
         v_harmonics.append({
             'harmonic': h,
             'frequency': round(h * fund_freq, 1),
@@ -410,16 +407,16 @@ def compute_harmonic_analysis(df: pd.DataFrame) -> Dict[str, Any]:
             'magnitude': round(i_mag, 6),
             'percent': round((i_mag / i_fund) * 100 if i_fund > 0 else 0, 2),
         })
-    
+
     # THD calculation
-    v_harm_sum_sq = sum(v_fft[h * fund_idx]**2 for h in range(2, 16) 
+    v_harm_sum_sq = sum(v_fft[h * fund_idx]**2 for h in range(2, 16)
                         if h * fund_idx < len(v_fft))
-    i_harm_sum_sq = sum(i_fft[h * fund_idx]**2 for h in range(2, 16) 
+    i_harm_sum_sq = sum(i_fft[h * fund_idx]**2 for h in range(2, 16)
                         if h * fund_idx < len(i_fft))
-    
+
     thd_v = np.sqrt(v_harm_sum_sq) / v_fund * 100 if v_fund > 0 else 0
     thd_i = np.sqrt(i_harm_sum_sq) / i_fund * 100 if i_fund > 0 else 0
-    
+
     return {
         'voltage_harmonics': v_harmonics,
         'current_harmonics': i_harmonics,

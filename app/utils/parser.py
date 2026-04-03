@@ -7,13 +7,12 @@ import pandas as pd
 import numpy as np
 import io
 import re
-import os
 
 
 def detect_separator(content: str) -> str:
     """Auto-detect delimiter: tab, comma, semicolon."""
     lines = content.strip().split('\n')
-    data_lines = [l for l in lines if re.search(r'\d', l)]
+    data_lines = [ln for ln in lines if re.search(r'\d', ln)]
     if not data_lines:
         return ','
     sample = '\n'.join(data_lines[:10])
@@ -42,7 +41,7 @@ def find_header_and_data(content: str, sep: str) -> tuple:
     units_idx = None
     data_start = None
     channel_names = []
-    
+
     for i, line in enumerate(lines):
         stripped = line.strip()
         if not stripped:
@@ -74,17 +73,17 @@ def find_header_and_data(content: str, sep: str) -> tuple:
                         data_start = i
                     except ValueError:
                         pass
-    
+
     return channel_names, units_idx, data_start, lines
 
 
 def parse_festo_format(content: str, sep: str) -> pd.DataFrame:
     """Parse Festo Didactic LVDAC-EMS oscilloscope export format."""
     channel_names, units_idx, data_start, lines = find_header_and_data(content, sep)
-    
+
     if data_start is None:
         raise ValueError("Could not find data rows in the file")
-    
+
     # Extract data rows
     data_rows = []
     for line in lines[data_start:]:
@@ -102,21 +101,21 @@ def parse_festo_format(content: str, sep: str) -> pd.DataFrame:
                     pass
         if len(numeric_parts) >= 2:  # At least time + one channel
             data_rows.append(numeric_parts)
-    
+
     if not data_rows:
         raise ValueError("No numeric data found in file")
-    
+
     # Determine column count from data
     max_cols = max(len(r) for r in data_rows)
     # Pad shorter rows
     for i in range(len(data_rows)):
         while len(data_rows[i]) < max_cols:
             data_rows[i].append(np.nan)
-    
+
     # Build column names
     # Clean channel names
     clean_names = [n.strip() for n in channel_names if n.strip() and n.strip().lower() not in ['off', '()', '']]
-    
+
     # Map to standard names
     col_names = []
     for name in clean_names:
@@ -131,12 +130,12 @@ def parse_festo_format(content: str, sep: str) -> pd.DataFrame:
             col_names.append('Power_W')
         else:
             col_names.append(name)
-    
+
     # Ensure we have enough column names
     while len(col_names) < max_cols:
         col_names.append(f'Col_{len(col_names)}')
     col_names = col_names[:max_cols]
-    
+
     df = pd.DataFrame(data_rows, columns=col_names)
     return df
 
@@ -167,26 +166,26 @@ def parse_simple_csv(content: str, sep: str) -> pd.DataFrame:
 def parse_transformer_data(file_content: str, filename: str = '') -> pd.DataFrame:
     """
     Universal parser that handles any transformer test data format.
-    
+
     Supports:
     - Festo Didactic LVDAC-EMS oscilloscope exports (CSV, TSV, TXT)
     - Simple CSV/TSV with headers
     - Tab-separated data with double-tab separators
     - Files with metadata headers before data
-    
+
     Returns DataFrame with standardized columns: Time_ms, Voltage_V, Current_A, Power_W
     """
     content = clean_content(file_content)
-    
+
     if not content.strip():
         raise ValueError("File is empty")
-    
+
     sep = detect_separator(content)
-    
+
     # Check if it's a Festo format (has metadata header)
     lower_content = content[:500].lower()
     is_festo = 'festo' in lower_content or 'oscilloscope' in lower_content or 'lvdac' in lower_content
-    
+
     try:
         if is_festo:
             df = parse_festo_format(content, sep)
@@ -202,11 +201,11 @@ def parse_transformer_data(file_content: str, filename: str = '') -> pd.DataFram
             df = parse_simple_csv(content, sep)
         except Exception:
             raise ValueError(f"Could not parse file: {str(e)}")
-    
+
     # Validate we have the required columns
     required = ['Time_ms', 'Voltage_V', 'Current_A']
     missing = [col for col in required if col not in df.columns]
-    
+
     if missing:
         # Try to auto-assign columns based on position
         if len(df.columns) >= 3:
@@ -218,34 +217,34 @@ def parse_transformer_data(file_content: str, filename: str = '') -> pd.DataFram
             df.columns = new_names[:len(df.columns)]
         else:
             raise ValueError(f"File must contain at least Time, Voltage, and Current columns. Found: {list(df.columns)}")
-    
+
     # Drop rows with NaN in critical columns
     df = df.dropna(subset=['Time_ms', 'Voltage_V', 'Current_A'])
-    
+
     # Calculate Power if not present
     if 'Power_W' not in df.columns:
         df['Power_W'] = df['Voltage_V'] * df['Current_A']
-    
+
     # Sort by time
     df = df.sort_values('Time_ms').reset_index(drop=True)
-    
+
     return df
 
 
 def detect_test_type(df: pd.DataFrame) -> str:
     """
     Auto-detect whether data is from a No-Load or Short-Circuit test.
-    
+
     No-Load: High voltage (100s of V), very low current (mA range)
     Short-Circuit: Low voltage (10s of V), higher current (100s of mA)
     """
     v_rms = np.sqrt(np.mean(df['Voltage_V'].values ** 2))
     i_rms = np.sqrt(np.mean(df['Current_A'].values ** 2))
-    
+
     # No-load: V_rms >> I_rms (voltage is high, current is very small)
     # Short-circuit: V_rms is relatively low, I_rms is relatively high
     impedance_magnitude = v_rms / i_rms if i_rms > 0 else float('inf')
-    
+
     # For a typical transformer:
     # No-load: impedance is very high (>500 ohms)
     # Short-circuit: impedance is relatively low (<200 ohms)
