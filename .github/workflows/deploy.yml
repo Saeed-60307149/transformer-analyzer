@@ -15,9 +15,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install dependencies & test
-        run: |
-          pip install -r requirements.txt pytest
+
           pytest tests/
 
   deploy:
