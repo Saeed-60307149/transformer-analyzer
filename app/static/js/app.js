@@ -165,6 +165,13 @@ function renderKPIs(data) {
 
 // ── Overview Charts ──
 function renderOverviewCharts(data) {
+    const placeholder = '<div style="display:flex;align-items:center;justify-content:center;height:180px;color:#64748b;font-size:13px;">Upload both No-Load and Short-Circuit files to see this chart</div>';
+    if (!data.combined) {
+        document.getElementById('efficiencyChart').closest('.chart-card').innerHTML += placeholder;
+        document.getElementById('vrChart').closest('.chart-card').innerHTML += placeholder;
+        document.getElementById('efficiencyChart').style.display = 'none';
+        document.getElementById('vrChart').style.display = 'none';
+    }
     // Efficiency Chart
     if (data.combined) {
         destroyChart('efficiency');
