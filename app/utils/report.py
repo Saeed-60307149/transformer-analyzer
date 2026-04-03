@@ -111,7 +111,7 @@ tr:nth-child(even) {{ background-color: #f8f9fa; }}
 <tr><th>Load (%)</th><th>Power Factor</th><th>Output (W)</th><th>Cu Loss (W)</th><th>Core Loss (W)</th><th>Efficiency (%)</th></tr>
 """
         for e in combined['efficiency_data']:
-            html += f'<tr><td>{e["load_fraction"]*100:.0f}%</td><td>{e["pf"]}</td><td class="param-value">{e["P_out"]:.2f}</td><td>{e["P_cu"]:.4f}</td><td>{e["P_core"]:.4f}</td><td class="param-value">{e["efficiency"]:.2f}</td></tr>\n'
+            html += f'<tr><td>{e["load_fraction"] * 100:.0f}%</td><td>{e["pf"]}</td><td class="param-value">{e["P_out"]:.2f}</td><td>{e["P_cu"]:.4f}</td><td>{e["P_core"]:.4f}</td><td class="param-value">{e["efficiency"]:.2f}</td></tr>\n'
 
         html += "</table></div>"
 
