@@ -122,6 +122,12 @@ Chart.defaults.plugins.legend.labels.pointStyle = 'circle';
 
 function destroyChart(id) { if(charts[id]) { charts[id].destroy(); delete charts[id]; } }
 
+// Safe number formatter — returns '—' for null/undefined/NaN
+function fmt(val, digits) {
+    if (val === null || val === undefined || (typeof val === 'number' && isNaN(val))) return '—';
+    return Number(val).toFixed(digits);
+}
+
 // ── Main Render ──
 function renderResults(data) {
     renderKPIs(data);
@@ -140,18 +146,18 @@ function renderKPIs(data) {
     const kpis = [];
     
     if (data.no_load) {
-        kpis.push({ label: 'Core Loss', value: data.no_load.P_core.toFixed(2), unit: 'W', sub: 'No-Load Test' });
-        kpis.push({ label: 'Magnetizing Reactance', value: data.no_load.X_m.toFixed(1), unit: 'Ω', sub: `Rc = ${data.no_load.R_c.toFixed(1)} Ω` });
-        kpis.push({ label: 'No-Load Current', value: (data.no_load.I_o * 1000).toFixed(2), unit: 'mA', sub: `PF = ${data.no_load.PF_nl.toFixed(4)}` });
+        kpis.push({ label: 'Core Loss', value: fmt(data.no_load.P_core, 2), unit: 'W', sub: 'No-Load Test' });
+        kpis.push({ label: 'Magnetizing Reactance', value: fmt(data.no_load.X_m, 1), unit: 'Ω', sub: `Rc = ${fmt(data.no_load.R_c, 1)} Ω` });
+        kpis.push({ label: 'No-Load Current', value: fmt(data.no_load.I_o * 1000, 2), unit: 'mA', sub: `PF = ${fmt(data.no_load.PF_nl, 4)}` });
     }
     if (data.short_circuit) {
-        kpis.push({ label: 'Copper Loss', value: data.short_circuit.P_cu.toFixed(2), unit: 'W', sub: 'Short-Circuit Test' });
-        kpis.push({ label: 'Eq. Impedance', value: data.short_circuit.Z_eq.toFixed(2), unit: 'Ω', sub: `Req=${data.short_circuit.R_eq.toFixed(2)}, Xeq=${data.short_circuit.X_eq.toFixed(2)}` });
-        kpis.push({ label: 'SC Current', value: (data.short_circuit.I_sc * 1000).toFixed(1), unit: 'mA', sub: `PF = ${data.short_circuit.PF_sc.toFixed(4)}` });
+        kpis.push({ label: 'Copper Loss', value: fmt(data.short_circuit.P_cu, 2), unit: 'W', sub: 'Short-Circuit Test' });
+        kpis.push({ label: 'Eq. Impedance', value: fmt(data.short_circuit.Z_eq, 2), unit: 'Ω', sub: `Req=${fmt(data.short_circuit.R_eq, 2)}, Xeq=${fmt(data.short_circuit.X_eq, 2)}` });
+        kpis.push({ label: 'SC Current', value: fmt(data.short_circuit.I_sc * 1000, 1), unit: 'mA', sub: `PF = ${fmt(data.short_circuit.PF_sc, 4)}` });
     }
     if (data.combined) {
-        kpis.push({ label: 'Max Efficiency', value: data.combined.max_efficiency.toFixed(1), unit: '%', sub: `at ${(data.combined.x_max_efficiency*100).toFixed(0)}% load` });
-        kpis.push({ label: 'Rated VA', value: data.combined.S_rated.toFixed(1), unit: 'VA', sub: 'Apparent Power' });
+        kpis.push({ label: 'Max Efficiency', value: fmt(data.combined.max_efficiency, 1), unit: '%', sub: `at ${fmt(data.combined.x_max_efficiency * 100, 0)}% load` });
+        kpis.push({ label: 'Rated VA', value: fmt(data.combined.S_rated, 1), unit: 'VA', sub: 'Apparent Power' });
     }
     
     grid.innerHTML = kpis.map(k => `

@@ -25,10 +25,26 @@ class NumpyJSONProvider(DefaultJSONProvider):
         if isinstance(obj, np.integer):
             return int(obj)
         if isinstance(obj, np.floating):
+            if np.isnan(obj) or np.isinf(obj):
+                return None
             return float(obj)
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         return super().default(obj)
+
+    def dumps(self, obj, **kwargs):
+        import math
+
+        def sanitize(o):
+            if isinstance(o, float) and (math.isnan(o) or math.isinf(o)):
+                return None
+            if isinstance(o, dict):
+                return {k: sanitize(v) for k, v in o.items()}
+            if isinstance(o, list):
+                return [sanitize(v) for v in o]
+            return o
+
+        return super().dumps(sanitize(obj), **kwargs)
 
 
 def create_app():
@@ -161,5 +177,3 @@ def create_app():
         return jsonify({'status': 'ok', 'timestamp': datetime.now().isoformat()})
 
     return app
-
-

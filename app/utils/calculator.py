@@ -9,9 +9,20 @@ Short-Circuit Test → Series branch: Req, Xeq, Zeq, PF_sc
 
 Combined → Full equivalent circuit, voltage regulation, efficiency
 """
+import math
 import numpy as np
 import pandas as pd
 from typing import Dict, Any, Optional
+
+
+def safe_round(value, ndigits=4):
+    """Round a value, returning None for inf/nan instead of crashing."""
+    try:
+        if value is None or math.isnan(value) or math.isinf(value):
+            return None
+        return round(float(value), ndigits)
+    except (TypeError, ValueError, OverflowError):
+        return None
 
 
 def compute_rms(signal: np.ndarray) -> float:
@@ -136,8 +147,8 @@ def analyze_no_load_test(df: pd.DataFrame, rated_voltage: Optional[float] = None
     I_m = np.sqrt(max(I_m_sq, 0))  # Magnetizing component (quadrature)
 
     # Core branch parameters
-    R_c = V_oc / I_c if I_c > 0 else float('inf')  # Core loss resistance
-    X_m = V_oc / I_m if I_m > 0 else float('inf')  # Magnetizing reactance
+    R_c = V_oc / I_c if I_c > 0 else None
+    X_m = V_oc / I_m if I_m > 0 else None
 
     # No-load angle
     theta_nl = np.arccos(PF_nl) if PF_nl <= 1 else 0
@@ -148,22 +159,22 @@ def analyze_no_load_test(df: pd.DataFrame, rated_voltage: Optional[float] = None
 
     return {
         'test_type': 'No-Load Test',
-        'V_oc': round(V_oc, 4),
-        'I_o': round(I_o, 6),
-        'P_core': round(P_core, 4),
-        'S_o': round(S_o, 4),
-        'Q_o': round(V_oc * I_m, 4),
-        'PF_nl': round(PF_nl, 6),
-        'theta_nl_deg': round(np.degrees(theta_nl), 2),
-        'I_c': round(I_c, 6),
-        'I_m': round(I_m, 6),
-        'R_c': round(R_c, 2),
-        'X_m': round(X_m, 2),
-        'frequency_Hz': round(frequency, 1),
-        'V_peak': round(V_peak, 2),
-        'I_peak': round(I_peak, 6),
+        'V_oc': safe_round(V_oc, 4),
+        'I_o': safe_round(I_o, 6),
+        'P_core': safe_round(P_core, 4),
+        'S_o': safe_round(S_o, 4),
+        'Q_o': safe_round(V_oc * I_m, 4),
+        'PF_nl': safe_round(PF_nl, 6),
+        'theta_nl_deg': safe_round(np.degrees(theta_nl), 2),
+        'I_c': safe_round(I_c, 6),
+        'I_m': safe_round(I_m, 6),
+        'R_c': safe_round(R_c, 2),
+        'X_m': safe_round(X_m, 2),
+        'frequency_Hz': safe_round(frequency, 1),
+        'V_peak': safe_round(V_peak, 2),
+        'I_peak': safe_round(I_peak, 6),
         'num_samples': len(df_cycles),
-        'duration_ms': round(time_ms[-1] - time_ms[0], 3) if len(time_ms) > 1 else 0,
+        'duration_ms': safe_round(time_ms[-1] - time_ms[0], 3) if len(time_ms) > 1 else 0,
     }
 
 
@@ -229,25 +240,25 @@ def analyze_short_circuit_test(df: pd.DataFrame, rated_current: Optional[float] 
 
     return {
         'test_type': 'Short-Circuit Test',
-        'V_sc': round(V_sc, 4),
-        'I_sc': round(I_sc, 6),
-        'P_cu': round(P_cu, 4),
-        'S_sc': round(S_sc, 4),
-        'Q_sc': round(V_sc * I_sc * np.sin(theta_sc), 4),
-        'PF_sc': round(PF_sc, 6),
-        'theta_sc_deg': round(np.degrees(theta_sc), 2),
-        'Z_eq': round(Z_eq, 4),
-        'R_eq': round(R_eq, 4),
-        'X_eq': round(X_eq, 4),
-        'R1_approx': round(R1, 4),
-        'R2_approx': round(R2, 4),
-        'X1_approx': round(X1, 4),
-        'X2_approx': round(X2, 4),
-        'frequency_Hz': round(frequency, 1),
-        'V_peak': round(V_peak, 2),
-        'I_peak': round(I_peak, 6),
+        'V_sc': safe_round(V_sc, 4),
+        'I_sc': safe_round(I_sc, 6),
+        'P_cu': safe_round(P_cu, 4),
+        'S_sc': safe_round(S_sc, 4),
+        'Q_sc': safe_round(V_sc * I_sc * np.sin(theta_sc), 4),
+        'PF_sc': safe_round(PF_sc, 6),
+        'theta_sc_deg': safe_round(np.degrees(theta_sc), 2),
+        'Z_eq': safe_round(Z_eq, 4),
+        'R_eq': safe_round(R_eq, 4),
+        'X_eq': safe_round(X_eq, 4),
+        'R1_approx': safe_round(R1, 4),
+        'R2_approx': safe_round(R2, 4),
+        'X1_approx': safe_round(X1, 4),
+        'X2_approx': safe_round(X2, 4),
+        'frequency_Hz': safe_round(frequency, 1),
+        'V_peak': safe_round(V_peak, 2),
+        'I_peak': safe_round(I_peak, 6),
         'num_samples': len(df_cycles),
-        'duration_ms': round(time_ms[-1] - time_ms[0], 3) if len(time_ms) > 1 else 0,
+        'duration_ms': safe_round(time_ms[-1] - time_ms[0], 3) if len(time_ms) > 1 else 0,
     }
 
 
