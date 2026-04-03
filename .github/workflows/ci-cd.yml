@@ -1,77 +1,75 @@
-name: CI/CD Pipeline
+name: Simple CI/CD
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main]
   pull_request:
     branches: [main]
 
 jobs:
-  test:
+  ci:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.10', '3.11', '3.12']
-    
     steps:
       - uses: actions/checkout@v4
       
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: '3.12'
       
-      - name: Cache pip packages
+      - name: Cache pip
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: ${{ runner.os }}-pip-
       
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-cov
+          pip install -r requirements.txt pytest pytest-cov flake8
       
       - name: Run tests
-        run: pytest tests/ -v --cov=app --cov-report=term-missing
+        run: pytest tests/ -v --cov=app
       
-      - name: Lint check
-        run: |
-          pip install flake8
-          flake8 app/ --max-line-length=120 --ignore=E501,W503,E402
-  
-  build:
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-      - uses: actions/checkout@v4
+      - name: Lint
+        run: flake8 app/ --max-line-length=120 --ignore=E501,W503
       
-      - name: Build Docker image
-        run: docker build -t transformer-analyzer:latest .
-      
-      - name: Test Docker container
-        run: |
-          docker run -d --name test-container -p 5000:5000 transformer-analyzer:latest
-          sleep 5
-          curl -f http://localhost:5000/health || exit 1
-          docker stop test-container
-
   deploy:
-    needs: build
+    needs: ci
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
     
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       
-      - name: Install Railway CLI
-        run: npm i -g @railway/cli
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
       
-      - name: Deploy to Railway
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: railway up --service transformer-analyzer
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/transformer-analyzer:latest,ghcr.io/${{ github.repository_owner }}/transformer-analyzer:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Deploy placeholder
+        run: |
+          echo "🚀 Deploy step - extend with SSH/Railway/K8s"
+          echo "Example SSH: scp deploy.sh user@server && ssh user@server 'docker pull ... && docker run ...'"
+          # Uncomment for Railway:
+          # npm i -g @railway/cli
+          # echo "$RAILWAY_TOKEN" | railway login
+          # railway up

@@ -26,7 +26,7 @@ A professional-grade Flask web application for analyzing transformer test data a
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/transformer-analyzer.git
+git clone https://github.com/Saeed-60307149/transformer-analyzer.git
 cd transformer-analyzer
 
 # Install dependencies
@@ -48,12 +48,30 @@ docker build -t transformer-analyzer .
 docker run -p 5000:5000 transformer-analyzer
 ```
 
-## Deploy to Railway
+## Deploy Instructions
 
-1. Push your code to GitHub
-2. Connect your repo on [Railway](https://railway.app)
-3. Add `RAILWAY_TOKEN` to your GitHub repository secrets
-4. Push to `main` — the CI/CD pipeline handles the rest
+### Local/Dev
+```bash
+pip install -r requirements.txt
+python run.py
+```
+
+### Docker Local
+```bash
+docker build -t transformer-analyzer .
+docker run -p 5000:5000 -e PORT=5000 transformer-analyzer
+```
+
+### Production (CI/CD)
+1. Push to `main` → GitHub Actions runs tests + pushes Docker to GHCR (`ghcr.io/{owner}/transformer-analyzer:latest`)
+2. Deploy from GHCR:
+   - **Server/VM**: `docker pull ghcr.io/{owner}/transformer-analyzer:latest && docker run -d -p 80:5000 ...`
+   - **Railway**: Connect repo, set builder to Docker, or use `railway up` manually
+   - **Kubernetes/Docker Swarm**: Use image directly
+
+**Secrets**: `GITHUB_TOKEN` (auto). Extend `deploy` job in `.github/workflows/ci-cd.yml` for auto-deploy (SSH, etc.).
+
+See TODO.md for setup status.
 
 ## Project Structure
 
