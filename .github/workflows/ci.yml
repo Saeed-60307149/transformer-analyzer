@@ -1,17 +1,16 @@
-name: CI - Test
+name: CI - Test & Lint
 
 on:
   push:
-    branches: ['**']
+    branches: [ main ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -24,13 +23,18 @@ jobs:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
 
-
+      - name: Install deps + test tools
+        run: |
           pip install -r requirements.txt pytest pytest-cov flake8
 
+      - name: Run tests
+        run: pytest tests/ -v --cov=app --cov-report=term-missing
 
+      - name: Run flake8
+        run: flake8 app/ --max-line-length=120 --ignore=E501,W503,E402
 
-
-
-      - name: Test report
+      - name: Summary
         if: always()
-        run: echo "Tests completed"
+        run: |
+          echo "✅ CI Complete"
+
