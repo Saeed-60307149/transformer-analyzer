@@ -37,13 +37,13 @@ jobs:
         if: always()
         run: echo "✅ Tests Completed"
 
-deploy:
-  name: Deploy to Render
-  needs: test
-  runs-on: ubuntu-latest
-  if: github.ref == 'refs/heads/main'
+  deploy:
+    name: Deploy to Render
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
 
-  steps:
-    - name: Trigger Render Deploy
-      run: |
-        curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
+    steps:
+      - name: Trigger Render Deploy
+        run: |
+          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
