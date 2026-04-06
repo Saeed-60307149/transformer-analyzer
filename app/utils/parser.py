@@ -163,115 +163,198 @@ def parse_simple_csv(content: str, sep: str) -> pd.DataFrame:
         raise ValueError("Could not parse file as simple CSV/TSV")
 
 
+def brute_force_extract(content: str) -> pd.DataFrame:
+    """
+    Last-resort parser: scans every line, grabs rows with ≥2 floats.
+    Strips all non-numeric characters before attempting float conversion.
+    """
+    rows = []
+    for line in content.split('\n'):
+        cleaned = re.sub(r'[^\d\.\-\,\;\t\s]', ' ', line)
+        parts = re.split(r'[\s,;\t]+', cleaned.strip())
+        nums = []
+        for p in parts:
+            p = p.strip()
+            if p:
+                try:
+                    nums.append(float(p))
+                except ValueError:
+                    pass
+        if len(nums) >= 2:
+            rows.append(nums)
+
+    if not rows:
+        raise ValueError("No numeric data could be extracted from the file.")
+
+    max_cols = max(len(r) for r in rows)
+    for r in rows:
+        while len(r) < max_cols:
+            r.append(np.nan)
+
+    return pd.DataFrame(rows)
+
+
+def infer_column_roles(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Infer Time, Voltage, Current, Power columns from data characteristics
+    when column names are absent or unrecognised.
+    Strategy: Time = most monotonically increasing col;
+              Voltage = largest RMS among remainder;
+              Current = second largest RMS; Power = third.
+    """
+    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    if len(numeric_cols) < 2:
+        raise ValueError("Need at least 2 numeric columns.")
+
+    col_rms = {}
+    col_monotonic = {}
+    for col in numeric_cols:
+        vals = df[col].dropna().values
+        if len(vals) == 0:
+            continue
+        col_rms[col] = np.sqrt(np.mean(vals ** 2))
+        diffs = np.diff(vals)
+        col_monotonic[col] = np.sum(diffs > 0) / max(len(diffs), 1)
+
+    time_col = max(col_monotonic, key=col_monotonic.get)
+    remaining = [c for c in numeric_cols if c != time_col]
+    if not remaining:
+        raise ValueError("Could not separate time from signal columns.")
+
+    remaining_sorted = sorted(remaining, key=lambda c: col_rms.get(c, 0), reverse=True)
+
+    rename = {time_col: 'Time_ms', remaining_sorted[0]: 'Voltage_V'}
+    if len(remaining_sorted) >= 2:
+        rename[remaining_sorted[1]] = 'Current_A'
+    if len(remaining_sorted) >= 3:
+        rename[remaining_sorted[2]] = 'Power_W'
+
+    df = df.rename(columns=rename)
+
+    if 'Time_ms' not in df.columns and 'Voltage_V' in df.columns:
+        n = len(df)
+        df.insert(0, 'Time_ms', np.arange(n) * (1000 / (50 * 100)))
+
+    return df
+
+
 def parse_transformer_data(file_content: str, filename: str = '') -> pd.DataFrame:
     """
-    Universal parser that handles any transformer test data format.
-
-    Supports:
-    - Festo Didactic LVDAC-EMS oscilloscope exports (CSV, TSV, TXT)
-    - Simple CSV/TSV with headers
-    - Tab-separated data with double-tab separators
-    - Files with metadata headers before data
-
-    Returns DataFrame with standardized columns: Time_ms, Voltage_V, Current_A, Power_W
+    Universal parser with 3-strategy fallback chain.
+    Strategy 1: Festo LVDAC-EMS format
+    Strategy 2: Simple pandas CSV/TSV
+    Strategy 3: Brute-force numeric extraction
+    Never raises unless the file has zero numeric data.
     """
     content = clean_content(file_content)
-
     if not content.strip():
         raise ValueError("File is empty")
 
     sep = detect_separator(content)
+    df = None
+    errors = []
 
-    # Check if it's a Festo format (has metadata header)
-    lower_content = content[:500].lower()
-    is_festo = 'festo' in lower_content or 'oscilloscope' in lower_content or 'lvdac' in lower_content
-
+    # Strategy 1
     try:
-        if is_festo:
-            df = parse_festo_format(content, sep)
-        else:
-            # Try Festo format first (might not have Festo header but same structure)
-            try:
-                df = parse_festo_format(content, sep)
-            except (ValueError, IndexError):
-                df = parse_simple_csv(content, sep)
+        df = parse_festo_format(content, sep)
+        if len(df) < 5:
+            raise ValueError("Too few rows from Festo parser")
     except Exception as e:
-        # Last resort: try simple CSV
+        errors.append(f"Festo: {e}")
+        df = None
+
+    # Strategy 2
+    if df is None:
         try:
             df = parse_simple_csv(content, sep)
-        except Exception:
-            raise ValueError(f"Could not parse file: {str(e)}")
+            if len(df) < 5:
+                raise ValueError("Too few rows from CSV parser")
+        except Exception as e:
+            errors.append(f"CSV: {e}")
+            df = None
 
-    # Validate we have the required columns
+    # Strategy 3
+    if df is None:
+        try:
+            df = brute_force_extract(content)
+        except Exception as e:
+            errors.append(f"BruteForce: {e}")
+            df = None
+
+    if df is None or len(df) < 3:
+        raise ValueError(
+            f"Could not parse file after all strategies. "
+            f"Details: {'; '.join(errors)}"
+        )
+
+    # Column identification — try to use names, fall back to inference
     required = ['Time_ms', 'Voltage_V', 'Current_A']
-    missing = [col for col in required if col not in df.columns]
+    if any(c not in df.columns for c in required):
+        df = infer_column_roles(df)
 
-    if missing:
-        # Try to auto-assign columns based on position
-        if len(df.columns) >= 3:
-            new_names = ['Time_ms', 'Voltage_V', 'Current_A']
-            if len(df.columns) >= 4:
-                new_names.append('Power_W')
-            for i in range(4, len(df.columns)):
-                new_names.append(f'Extra_{i}')
-            df.columns = new_names[:len(df.columns)]
-        else:
-            raise ValueError(f"File must contain at least Time, Voltage, and Current columns. Found: {list(df.columns)}")
+    # Final check
+    still_missing = [c for c in required if c not in df.columns]
+    if still_missing:
+        raise ValueError(
+            f"Could not identify required columns: {still_missing}. "
+            f"Found: {list(df.columns)}"
+        )
 
-    # Drop rows with NaN in critical columns
+    # Coerce to numeric, drop bad rows
+    for col in ['Time_ms', 'Voltage_V', 'Current_A']:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
     df = df.dropna(subset=['Time_ms', 'Voltage_V', 'Current_A'])
 
-    # Calculate Power if not present
+    # Power column
     if 'Power_W' not in df.columns:
         df['Power_W'] = df['Voltage_V'] * df['Current_A']
+    else:
+        df['Power_W'] = pd.to_numeric(df['Power_W'], errors='coerce')
+        df['Power_W'] = df['Power_W'].fillna(df['Voltage_V'] * df['Current_A'])
 
-    # Sort by time
     df = df.sort_values('Time_ms').reset_index(drop=True)
-
     return df
 
 
 def validate_test_data(df: pd.DataFrame, expected_type: str) -> tuple:
     """
-    Strictly validate whether data matches the expected test type.
+    Adaptive validation using the V_rms / I_rms ratio.
+    Works for any transformer voltage rating (24V, 120V, 240V, 480V …).
 
-    No-Load test characteristics:
-      - High voltage: V_rms > 50 V (full rated primary voltage)
-      - Very low current: I_rms < 0.5 A (only magnetizing/core-loss current flows)
+    No-load:      high voltage, tiny current   → ratio >> 1000
+    Short-circuit: low voltage, rated current  → ratio << 200
 
-    Short-Circuit test characteristics:
-      - Low voltage: V_rms < 50 V (reduced voltage to limit current)
-      - Measurable current: I_rms > 0.05 A
-
-    Returns (True, '') if valid, or (False, reason_string) if invalid.
+    Ambiguous zone (200–1000): accept with empty reason (warnings shown elsewhere).
     """
     v_rms = np.sqrt(np.mean(df['Voltage_V'].values ** 2))
     i_rms = np.sqrt(np.mean(df['Current_A'].values ** 2))
 
+    if i_rms < 1e-9:
+        return False, "Current signal is essentially zero — check your file."
+    if v_rms < 1e-6:
+        return False, "Voltage signal is essentially zero — check your file."
+
+    ratio = v_rms / i_rms
+
+    AMBIGUOUS_LOW  = 200
+    AMBIGUOUS_HIGH = 1000
+
     if expected_type == 'no_load':
-        if v_rms <= 50:
-            return False, (
-                f'Measured V_rms = {v_rms:.2f} V — expected > 50 V for a No-Load test. '
-                'This looks like Short-Circuit test data uploaded in the wrong slot.'
-            )
-        if i_rms >= 0.5:
-            return False, (
-                f'Measured I_rms = {i_rms:.4f} A — expected < 0.5 A for a No-Load test. '
-                'This looks like Short-Circuit test data uploaded in the wrong slot.'
-            )
-        return True, ''
+        if ratio >= AMBIGUOUS_LOW:
+            return True, ''
+        return False, (
+            f'V/I ratio = {ratio:.1f} (V_rms={v_rms:.2f} V, I_rms={i_rms:.4f} A) — '
+            f'expected ratio > {AMBIGUOUS_LOW} for a No-Load test. '
+            'This looks like Short-Circuit data in the wrong slot.'
+        )
 
     if expected_type == 'short_circuit':
-        if v_rms > 50:
-            return False, (
-                f'Measured V_rms = {v_rms:.2f} V — expected < 50 V for a Short-Circuit test. '
-                'This looks like No-Load test data uploaded in the wrong slot.'
-            )
-        if i_rms < 0.05:
-            return False, (
-                f'Measured I_rms = {i_rms:.5f} A — expected > 0.05 A for a Short-Circuit test. '
-                'This looks like No-Load test data uploaded in the wrong slot.'
-            )
-        return True, ''
+        if ratio < AMBIGUOUS_HIGH:
+            return True, ''
+        return False, (
+            f'V/I ratio = {ratio:.1f} (V_rms={v_rms:.2f} V, I_rms={i_rms:.4f} A) — '
+            f'expected ratio < {AMBIGUOUS_HIGH} for a Short-Circuit test. '
+            'This looks like No-Load data in the wrong slot.'
+        )
 
     return False, f'Unknown expected type: {expected_type}'

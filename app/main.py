@@ -16,6 +16,7 @@ from app.utils.calculator import (
     compute_combined_analysis,
     generate_waveform_data,
     compute_harmonic_analysis,
+    compute_confidence_score,
 )
 from app.utils.report import generate_report_html
 
@@ -110,6 +111,9 @@ def create_app():
                             results['no_load'] = analyze_no_load_test(nl_df)
                             results['waveforms']['no_load'] = generate_waveform_data(nl_df)
                             results['harmonics']['no_load'] = compute_harmonic_analysis(nl_df)
+                            results['no_load']['confidence'] = compute_confidence_score(
+                                nl_df, results['harmonics']['no_load']
+                            )
                     except Exception as e:
                         results['errors'].append(f'Error parsing no-load file: {str(e)}')
                         traceback.print_exc()
@@ -135,6 +139,9 @@ def create_app():
                             results['short_circuit'] = analyze_short_circuit_test(sc_df)
                             results['waveforms']['short_circuit'] = generate_waveform_data(sc_df)
                             results['harmonics']['short_circuit'] = compute_harmonic_analysis(sc_df)
+                            results['short_circuit']['confidence'] = compute_confidence_score(
+                                sc_df, results['harmonics']['short_circuit']
+                            )
                     except Exception as e:
                         results['errors'].append(f'Error parsing short-circuit file: {str(e)}')
                         traceback.print_exc()

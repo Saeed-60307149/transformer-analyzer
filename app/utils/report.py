@@ -4,6 +4,38 @@ PDF Report Generator for Transformer Analysis
 from datetime import datetime
 
 
+def _svg_bar_chart(data_points: list, width: int = 500, height: int = 200, color: str = '#0f3460') -> str:
+    """Generate a minimal inline SVG bar chart for the exported report."""
+    if not data_points:
+        return ''
+    labels = [str(d['label']) for d in data_points]
+    values = [float(d['value']) for d in data_points]
+    max_val = max(values) if values else 1.0
+    bar_w = (width - 60) // max(len(values), 1)
+    bars = x_labels = ''
+    for i, (lbl, val) in enumerate(zip(labels, values)):
+        bh = int((val / max_val) * (height - 40))
+        x = 40 + i * bar_w + bar_w * 0.1
+        y = height - 30 - bh
+        bars += (
+            f'<rect x="{x:.0f}" y="{y}" width="{bar_w*0.8:.0f}" height="{bh}" '
+            f'fill="{color}" opacity="0.85" rx="3"/>'
+            f'<text x="{x+bar_w*0.4:.0f}" y="{y-4}" text-anchor="middle" '
+            f'font-size="9" fill="#333">{val:.1f}</text>'
+        )
+        x_labels += (
+            f'<text x="{x+bar_w*0.4:.0f}" y="{height-10}" text-anchor="middle" '
+            f'font-size="9" fill="#555">{lbl}</text>'
+        )
+    return (
+        f'<svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg" '
+        f'style="display:block;margin:10px auto;">'
+        f'<line x1="40" y1="10" x2="40" y2="{height-30}" stroke="#ccc" stroke-width="1"/>'
+        f'<line x1="40" y1="{height-30}" x2="{width}" y2="{height-30}" stroke="#ccc" stroke-width="1"/>'
+        f'{bars}{x_labels}</svg>'
+    )
+
+
 def generate_report_html(nl_results, sc_results, combined, nl_harmonics, sc_harmonics):
     """Generate a printable HTML report."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -113,7 +145,34 @@ tr:nth-child(even) {{ background-color: #f8f9fa; }}
         for e in combined['efficiency_data']:
             html += f'<tr><td>{e["load_fraction"] * 100:.0f}%</td><td>{e["pf"]}</td><td class="param-value">{e["P_out"]:.2f}</td><td>{e["P_cu"]:.4f}</td><td>{e["P_core"]:.4f}</td><td class="param-value">{e["efficiency"]:.2f}</td></tr>\n'
 
-        html += "</table></div>"
+        html += "</table>"
+
+        # SVG chart: Efficiency at Unity PF
+        if combined.get('efficiency_data'):
+            upf = [d for d in combined['efficiency_data'] if d['pf'] == 1.0]
+            pts = [{'label': f"{int(d['load_fraction']*100)}%", 'value': d['efficiency']} for d in upf]
+            html += '<h3>Efficiency at Unity PF</h3>'
+            html += _svg_bar_chart(pts, color='#0f3460')
+
+        html += "</div>"
+
+    # Loss Distribution SVG chart
+    if nl_results and sc_results:
+        p_core = nl_results.get('P_core') or 0
+        p_cu   = sc_results.get('P_cu') or 0
+        total  = p_core + p_cu
+        if total > 0:
+            html += (
+                f'<div class="section">'
+                f'<h3 style="color:#0f3460;margin:20px 0 10px;">Loss Distribution</h3>'
+                f'<p>Core Loss: <strong>{p_core:.4f} W</strong> ({p_core/total*100:.1f}%)&nbsp;|&nbsp;'
+                f'Copper Loss: <strong>{p_cu:.4f} W</strong> ({p_cu/total*100:.1f}%)</p>'
+            )
+            html += _svg_bar_chart(
+                [{'label': 'Core Loss', 'value': p_core}, {'label': 'Copper Loss', 'value': p_cu}],
+                width=300, height=160, color='#1a6ba0'
+            )
+            html += '</div>'
 
     if nl_harmonics:
         html += f"""

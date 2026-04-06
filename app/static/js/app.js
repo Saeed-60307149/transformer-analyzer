@@ -76,7 +76,15 @@ document.getElementById('uploadForm').addEventListener('submit', async function(
         // Show hard validation errors — do not proceed to render
         if (data.errors && data.errors.length > 0) {
             data.errors.forEach(err => showAlert(err, 'error'));
+            const allErrors = (data.errors || []).join(' ').toLowerCase();
+            if (allErrors.includes('wrong slot')) {
+                showAlert('💡 Tip: Files may be in the wrong upload slots — try swapping them.', 'warning');
+            }
             return;
+        }
+
+        if (data.warnings && data.warnings.length > 0) {
+            data.warnings.forEach(w => showAlert(w, 'warning'));
         }
 
         if (data.no_load || data.short_circuit) {
@@ -141,6 +149,7 @@ function buildTabs(data) {
         { id: 'combined',      label: 'Combined',           show: !!data.combined },
         { id: 'waveforms',     label: 'Waveforms',          show: !!(data.waveforms && (data.waveforms.no_load || data.waveforms.short_circuit)) },
         { id: 'circuit',       label: 'Circuit',            show: !!(data.no_load || data.short_circuit) },
+        { id: 'phasors',       label: '⚡ Phasors',         show: !!(data.no_load || data.short_circuit) },
         { id: 'report',        label: 'Report',             show: !!(data.no_load || data.short_circuit) },
     ];
 
@@ -170,6 +179,23 @@ function switchTab(tabName) {
 
 // ── Main Render ───────────────────────────────────────────────────────────────
 function renderResults(data) {
+    if (!document.getElementById('resetBtn')) {
+        const resetBtn = document.createElement('button');
+        resetBtn.id = 'resetBtn';
+        resetBtn.className = 'btn-analyze';
+        resetBtn.style.cssText = 'margin:0 0 24px 0;background:var(--surface);border:1px solid var(--border);color:var(--text);box-shadow:none;';
+        resetBtn.textContent = '↩ Analyze Another File';
+        resetBtn.onclick = () => {
+            hideResults();
+            clearAlerts();
+            removeFile('nl');
+            removeFile('sc');
+            document.getElementById('uploadSection').scrollIntoView({ behavior: 'smooth' });
+            resetBtn.remove();
+        };
+        document.getElementById('resultsSection').prepend(resetBtn);
+    }
+
     buildTabs(data);
     renderOverview(data);
     if (data.no_load)       renderNoLoadTab(data);
@@ -178,6 +204,7 @@ function renderResults(data) {
     renderWaveforms(data);
     if (data.no_load || data.short_circuit) renderCircuitDiagram(data);
     if (data.no_load || data.short_circuit) renderReportPreview(data);
+    renderPhasorDiagram(data);
 }
 
 // ── Helper: inject HTML into a panel ─────────────────────────────────────────
@@ -232,6 +259,7 @@ function renderOverview(data) {
         html += chartCard('Power Triangle', 'powerChart');
     }
     html += '</div>';
+    html += renderNameplate(data);
 
     el.innerHTML = html;
 
@@ -310,7 +338,9 @@ function renderNoLoadTab(data) {
         { name: 'Frequency',             sym: 'f',       val: fmt(nl.frequency_Hz,  1), unit: 'Hz'  },
     ];
 
-    let html = `<div class="params-grid">${params.map(p => `
+    const nlConf = (nl.confidence) ? confidenceBadge(nl.confidence) : '';
+    let html = `<h2 style="margin-bottom:20px;font-family:var(--font-display);font-size:28px;">No-Load Test Results ${nlConf}</h2>
+    <div class="params-grid">${params.map(p => `
         <div class="param-card">
             <div><div class="param-name">${p.name}</div><div class="param-symbol">${p.sym}</div></div>
             <div><span class="param-val">${p.val}</span><span class="param-unit">${p.unit}</span></div>
@@ -382,7 +412,9 @@ function renderShortCircuitTab(data) {
         { name: 'Frequency',            sym: 'f',         val: fmt(sc.frequency_Hz, 1), unit: 'Hz'  },
     ];
 
-    let html = `<div class="params-grid">${params.map(p => `
+    const scConf = (sc.confidence) ? confidenceBadge(sc.confidence) : '';
+    let html = `<h2 style="margin-bottom:20px;font-family:var(--font-display);font-size:28px;">Short-Circuit Test Results ${scConf}</h2>
+    <div class="params-grid">${params.map(p => `
         <div class="param-card">
             <div><div class="param-name">${p.name}</div><div class="param-symbol">${p.sym}</div></div>
             <div><span class="param-val">${p.val}</span><span class="param-unit">${p.unit}</span></div>
@@ -588,6 +620,7 @@ function renderCircuitDiagram(data) {
                 Zeq = ${sc.Z_eq != null ? fmt(sc.Z_eq, 2) : '?'}Ω  |  Req = ${sc.R_eq != null ? fmt(sc.R_eq, 2) : '?'}Ω  |  Xeq = ${sc.X_eq != null ? fmt(sc.X_eq, 2) : '?'}Ω
             </text>
         </svg>`;
+    el.innerHTML += renderNameplate(data);
 }
 
 // ── Report Preview ────────────────────────────────────────────────────────────
@@ -717,17 +750,16 @@ function renderReportPreview(data) {
         html += '</table>';
     }
 
-    if (data.harmonics) {
-        if (data.harmonics.no_load) {
-            const h = data.harmonics.no_load;
-            html += `<h3 style="color:#0f3460;margin:20px 0 10px;">${sectionIndex++}. Harmonic Analysis — No-Load</h3>
-                <p style="margin-bottom:8px;">THD Voltage: <strong>${h.thd_voltage}%</strong> &nbsp;|&nbsp; THD Current: <strong>${h.thd_current}%</strong></p>`;
-        }
-        if (data.harmonics.short_circuit) {
-            const h = data.harmonics.short_circuit;
-            html += `<h3 style="color:#0f3460;margin:20px 0 10px;">${sectionIndex++}. Harmonic Analysis — Short-Circuit</h3>
-                <p style="margin-bottom:8px;">THD Voltage: <strong>${h.thd_voltage}%</strong> &nbsp;|&nbsp; THD Current: <strong>${h.thd_current}%</strong></p>`;
-        }
+    const harmonics = data.harmonics || {};
+    if (harmonics.no_load) {
+        const h = harmonics.no_load;
+        html += `<h3 style="color:#0f3460;margin:20px 0 10px;">${sectionIndex++}. Harmonic Analysis — No-Load</h3>
+            <p style="margin-bottom:8px;">THD Voltage: <strong>${h.thd_voltage}%</strong> &nbsp;|&nbsp; THD Current: <strong>${h.thd_current}%</strong></p>`;
+    }
+    if (harmonics.short_circuit) {
+        const h = harmonics.short_circuit;
+        html += `<h3 style="color:#0f3460;margin:20px 0 10px;">${sectionIndex++}. Harmonic Analysis — Short-Circuit</h3>
+            <p style="margin-bottom:8px;">THD Voltage: <strong>${h.thd_voltage}%</strong> &nbsp;|&nbsp; THD Current: <strong>${h.thd_current}%</strong></p>`;
     }
 
     html += '</div>'; // close .report-preview
@@ -759,3 +791,292 @@ async function exportReport() {
 }
 
 function printReport() { window.print(); }
+
+// ── Confidence Badge ──────────────────────────────────────────────────────────
+function confidenceBadge(conf) {
+    if (!conf) return '';
+    const tip = conf.reasons && conf.reasons.length
+        ? conf.reasons.join('; ')
+        : 'All quality checks passed';
+    return `<span class="conf-badge" style="
+        display:inline-flex;align-items:center;gap:5px;
+        background:${conf.color}22;border:1px solid ${conf.color}55;
+        color:${conf.color};border-radius:20px;
+        padding:3px 10px;font-size:11px;font-weight:600;
+        cursor:help;margin-left:8px;"
+        title="${tip}">
+        ${conf.icon} ${conf.label} (${conf.score}%)
+    </span>`;
+}
+
+// ── Nameplate Estimator ───────────────────────────────────────────────────────
+function renderNameplate(data) {
+    if (!data.no_load && !data.short_circuit) return '';
+
+    const nl = data.no_load || {};
+    const sc = data.short_circuit || {};
+    const c  = data.combined  || {};
+
+    const sRated = c.S_rated ? (c.S_rated / 1000).toFixed(3) : '—';
+    const vHV    = nl.V_oc   ? fmt(nl.V_oc, 1)   : '—';
+    const iRated = sc.I_sc   ? fmt(sc.I_sc * 1000, 1) : '—';
+    const freq   = nl.frequency_Hz || sc.frequency_Hz || 50;
+    const zPct   = c.Z_percent  ? fmt(c.Z_percent, 2)  : '—';
+    const eta    = c.max_efficiency ? fmt(c.max_efficiency, 1) : '—';
+
+    const sRaw = c.S_rated || 0;
+    const stdKVA = [0.05,0.1,0.15,0.25,0.5,0.75,1,1.5,2,3,5,7.5,10,15,25,50,75,100];
+    const kvaRaw = sRaw / 1000;
+    const snapKVA = stdKVA.reduce((a, b) => Math.abs(b - kvaRaw) < Math.abs(a - kvaRaw) ? b : a, stdKVA[0]);
+
+    return `
+    <div class="nameplate-card" style="
+        background: linear-gradient(135deg, #1a2236 0%, #0f1729 100%);
+        border: 2px solid #fbbf24;
+        border-radius: 12px;
+        padding: 24px 32px;
+        margin: 24px 0;
+        position: relative;
+        overflow: hidden;
+        font-family: var(--font-mono);
+        box-shadow: 0 0 40px rgba(251,191,36,0.15);
+    ">
+        <div style="position:absolute;inset:0;background:
+            repeating-linear-gradient(45deg,transparent,transparent 10px,
+            rgba(251,191,36,0.02) 10px,rgba(251,191,36,0.02) 11px);
+            pointer-events:none;"></div>
+        <div style="text-align:center;margin-bottom:16px;">
+            <div style="font-size:11px;letter-spacing:3px;color:#fbbf24;text-transform:uppercase;margin-bottom:4px;">
+                Estimated Nameplate
+            </div>
+            <div style="font-size:28px;font-weight:700;color:#fff;letter-spacing:-1px;">
+                ${snapKVA} kVA
+            </div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px;">
+                Computed: ${sRated} kVA
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:16px;">
+            ${[
+                ['Primary V',  vHV + ' V'],
+                ['Frequency',  freq + ' Hz'],
+                ['Rated I',    iRated + ' mA'],
+                ['%Z',         zPct + '%'],
+                ['Max η',      eta + '%'],
+                ['Temp Rise',  '~40°C'],
+            ].map(([k, v]) => `
+            <div style="text-align:center;">
+                <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:1px;">${k}</div>
+                <div style="font-size:16px;color:#fbbf24;font-weight:600;">${v}</div>
+            </div>`).join('')}
+        </div>
+        <div style="text-align:center;margin-top:16px;padding-top:12px;
+            border-top:1px solid rgba(251,191,36,0.2);
+            font-size:10px;color:#475569;letter-spacing:1px;">
+            ESTIMATED FROM TEST DATA · TransformerIQ ANALYZER
+        </div>
+    </div>`;
+}
+
+// ── Animated Phasor Diagram ───────────────────────────────────────────────────
+function renderPhasorDiagram(data) {
+    const el = panel('phasors');
+    if (!el) return;
+
+    const datasets = [];
+    if (data.no_load) {
+        datasets.push({
+            label: 'No-Load',
+            pf: data.no_load.PF_nl,
+            vMag: Math.min(data.no_load.V_oc || 1, 9999),
+            iMag: (data.no_load.I_o || 0.001) * 1000,
+        });
+    }
+    if (data.short_circuit) {
+        datasets.push({
+            label: 'Short-Circuit',
+            pf: data.short_circuit.PF_sc,
+            vMag: data.short_circuit.V_sc || 1,
+            iMag: (data.short_circuit.I_sc || 0.001) * 10,
+        });
+    }
+
+    let activeIdx = 0;
+    let animating = true;
+    let animFrame = null;
+    let t = 0;
+
+    el.innerHTML = `
+        <div style="text-align:center;padding:20px;">
+            <h3 style="margin-bottom:16px;font-family:var(--font-display);font-size:22px;">
+                Animated Phasor Diagram
+            </h3>
+            ${datasets.length > 1 ? `
+            <div style="display:flex;justify-content:center;gap:10px;margin-bottom:16px;">
+                ${datasets.map((d,i) => `
+                <button class="phasor-toggle ${i===0?'active':''}" data-idx="${i}"
+                    style="padding:6px 18px;border-radius:8px;border:1px solid var(--border);
+                    background:${i===0?'var(--accent)':'var(--surface)'};
+                    color:${i===0?'#fff':'var(--text-dim)'};cursor:pointer;font-size:13px;">
+                    ${d.label}
+                </button>`).join('')}
+            </div>` : ''}
+            <canvas id="phasorCanvas" width="480" height="480"
+                style="border-radius:50%;background:#0a0e1a;max-width:100%;"></canvas>
+            <div style="margin-top:16px;display:flex;justify-content:center;gap:12px;align-items:center;">
+                <button id="phasorPlayPause"
+                    style="padding:8px 24px;border-radius:8px;
+                    background:var(--accent);color:#fff;border:none;
+                    font-size:14px;cursor:pointer;">⏸ Pause</button>
+                <span style="font-size:13px;color:var(--text-muted);" id="phasorAngleDisplay"></span>
+            </div>
+        </div>`;
+
+    const canvas = document.getElementById('phasorCanvas');
+    const ctx = canvas.getContext('2d');
+    const cx = 240, cy = 240, R = 170;
+
+    el.querySelectorAll('.phasor-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+            activeIdx = parseInt(btn.dataset.idx);
+            el.querySelectorAll('.phasor-toggle').forEach((b, i) => {
+                b.style.background = i === activeIdx ? 'var(--accent)' : 'var(--surface)';
+                b.style.color = i === activeIdx ? '#fff' : 'var(--text-dim)';
+            });
+        });
+    });
+
+    document.getElementById('phasorPlayPause').onclick = () => {
+        animating = !animating;
+        document.getElementById('phasorPlayPause').textContent = animating ? '⏸ Pause' : '▶ Play';
+        if (animating) draw();
+    };
+
+    function draw() {
+        if (!animating) return;
+        const ds = datasets[activeIdx];
+        const phiV = t;
+        const phi  = Math.acos(Math.max(-1, Math.min(1, ds.pf)));
+        const phiI = t - phi;
+
+        ctx.clearRect(0, 0, 480, 480);
+
+        ctx.fillStyle = '#0a0e1a';
+        ctx.beginPath();
+        ctx.arc(cx, cy, R + 30, 0, Math.PI * 2);
+        ctx.fill();
+
+        [0.33, 0.66, 1.0].forEach(f => {
+            ctx.beginPath();
+            ctx.arc(cx, cy, R * f, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        });
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.setLineDash([4, 6]);
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(cx - R - 20, cy); ctx.lineTo(cx + R + 20, cy); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx, cy - R - 20); ctx.lineTo(cx, cy + R + 20); ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Voltage phasor
+        const vx = cx + R * Math.cos(phiV);
+        const vy = cy - R * Math.sin(phiV);
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(vx, vy);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        const avAngle = Math.atan2(cy - vy, vx - cx);
+        ctx.beginPath();
+        ctx.moveTo(vx, vy);
+        ctx.lineTo(vx - 14 * Math.cos(avAngle - 0.4), vy + 14 * Math.sin(avAngle - 0.4));
+        ctx.lineTo(vx - 14 * Math.cos(avAngle + 0.4), vy + 14 * Math.sin(avAngle + 0.4));
+        ctx.closePath();
+        ctx.fillStyle = '#38bdf8';
+        ctx.fill();
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = 'bold 14px DM Sans, sans-serif';
+        ctx.fillText('V', vx + 10, vy - 6);
+
+        // Current phasor
+        const iScale = 0.65;
+        const ix = cx + R * iScale * Math.cos(phiI);
+        const iy = cy - R * iScale * Math.sin(phiI);
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(ix, iy);
+        ctx.strokeStyle = '#f472b6';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        const aiAngle = Math.atan2(cy - iy, ix - cx);
+        ctx.beginPath();
+        ctx.moveTo(ix, iy);
+        ctx.lineTo(ix - 14 * Math.cos(aiAngle - 0.4), iy + 14 * Math.sin(aiAngle - 0.4));
+        ctx.lineTo(ix - 14 * Math.cos(aiAngle + 0.4), iy + 14 * Math.sin(aiAngle + 0.4));
+        ctx.closePath();
+        ctx.fillStyle = '#f472b6';
+        ctx.fill();
+        ctx.fillStyle = '#f472b6';
+        ctx.font = 'bold 14px DM Sans, sans-serif';
+        ctx.fillText('I', ix + 10, iy - 6);
+
+        // Phase angle arc
+        ctx.beginPath();
+        ctx.arc(cx, cy, 50, -phiI, -phiV, phiI > phiV);
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = '12px DM Sans, sans-serif';
+        ctx.fillText(`φ=${(phi * 180 / Math.PI).toFixed(1)}°`,
+            cx + 60 * Math.cos(-(phiV + phiI) / 2) - 10,
+            cy - 60 * Math.sin(-(phiV + phiI) / 2)
+        );
+
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.font = '13px DM Sans, sans-serif';
+        ctx.fillText(`PF = ${ds.pf.toFixed(4)}  |  ${ds.label}`, cx - 70, 30);
+
+        const angleEl = document.getElementById('phasorAngleDisplay');
+        if (angleEl) angleEl.textContent = `Phase angle: ${(phi * 180 / Math.PI).toFixed(2)}°`;
+
+        t += 0.025;
+        animFrame = requestAnimationFrame(draw);
+    }
+
+    draw();
+
+    const observer = new MutationObserver(() => {
+        const isActive = el.classList.contains('active');
+        if (!isActive && animFrame) {
+            cancelAnimationFrame(animFrame);
+            animating = false;
+            const btn = document.getElementById('phasorPlayPause');
+            if (btn) btn.textContent = '▶ Play';
+        }
+    });
+    observer.observe(el, { attributes: true, attributeFilter: ['class'] });
+}
+
+// ── Dark / Light Mode Toggle ──────────────────────────────────────────────────
+function toggleTheme() {
+    const root = document.documentElement;
+    const btn  = document.getElementById('themeToggle');
+    const isLight = root.classList.toggle('light-mode');
+    if (btn) btn.textContent = isLight ? '🌙 Dark' : '☀ Light';
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+}
+
+// Apply saved theme on load
+(function() {
+    const saved = localStorage.getItem('theme');
+    if (saved === 'light') {
+        document.documentElement.classList.add('light-mode');
+        const btn = document.getElementById('themeToggle');
+        if (btn) btn.textContent = '🌙 Dark';
+    }
+})();

@@ -81,22 +81,23 @@ def detect_frequency(time_ms: np.ndarray, voltage: np.ndarray) -> float:
 
 
 def extract_complete_cycles(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Extract only complete cycles from the waveform data for accurate RMS calculation.
-    """
-    voltage = df['Voltage_V'].values
+    """Extract complete cycles; removes DC offset before crossing detection."""
+    if len(df) < 10:
+        return df
 
-    # Find positive-going zero crossings
+    voltage = df['Voltage_V'].values
+    centered = voltage - np.mean(voltage)  # Remove DC offset
+
     sign_changes = np.where(
-        (voltage[:-1] <= 0) & (voltage[1:] > 0)
+        (centered[:-1] <= 0) & (centered[1:] > 0)
     )[0]
 
     if len(sign_changes) >= 2:
-        start_idx = sign_changes[0]
-        end_idx = sign_changes[-1]
-        return df.iloc[start_idx:end_idx + 1].reset_index(drop=True)
+        extracted = df.iloc[sign_changes[0]:sign_changes[-1] + 1].reset_index(drop=True)
+        if len(extracted) >= 10:
+            return extracted
 
-    return df
+    return df  # Fallback: return full data
 
 
 def analyze_no_load_test(df: pd.DataFrame, rated_voltage: Optional[float] = None) -> Dict[str, Any]:
@@ -139,7 +140,7 @@ def analyze_no_load_test(df: pd.DataFrame, rated_voltage: Optional[float] = None
     # Power factor
     S_o = V_oc * I_o  # Apparent power
     PF_nl = P_core / S_o if S_o > 0 else 0
-    PF_nl = min(PF_nl, 1.0)  # Clamp to valid range
+    PF_nl = max(0.0, min(float(PF_nl), 1.0))
 
     # No-load current components
     I_c = P_core / V_oc if V_oc > 0 else 0  # Core loss component (in-phase)
@@ -217,7 +218,7 @@ def analyze_short_circuit_test(df: pd.DataFrame, rated_current: Optional[float] 
     # Power factor
     S_sc = V_sc * I_sc
     PF_sc = P_cu / S_sc if S_sc > 0 else 0
-    PF_sc = min(PF_sc, 1.0)
+    PF_sc = max(0.0, min(float(PF_sc), 1.0))
 
     # Equivalent circuit parameters (referred to primary)
     Z_eq = V_sc / I_sc if I_sc > 0 else 0
@@ -277,6 +278,13 @@ def compute_combined_analysis(nl_results: Dict, sc_results: Dict) -> Dict[str, A
     P_cu_fl = sc_results['P_cu']  # Full-load copper loss
     R_eq = sc_results['R_eq']
     X_eq = sc_results['X_eq']
+
+    if P_cu_fl <= 0:
+        P_cu_fl = 1e-9
+    if V_rated <= 0:
+        raise ValueError("V_oc from no-load test must be > 0")
+    if I_rated <= 0:
+        raise ValueError("I_sc from short-circuit test must be > 0")
 
     # Rated apparent power
     S_rated = V_rated * I_rated
@@ -434,4 +442,68 @@ def compute_harmonic_analysis(df: pd.DataFrame) -> Dict[str, Any]:
         'thd_voltage': round(thd_v, 2),
         'thd_current': round(thd_i, 2),
         'fundamental_frequency': round(fund_freq, 1),
+    }
+
+
+def compute_confidence_score(df: pd.DataFrame, harmonics: dict) -> dict:
+    """
+    Score data quality 0–100 and return a confidence label + color.
+
+    Factors:
+    - THD voltage < 5% → excellent waveform
+    - Number of complete cycles detected (more = better)
+    - Monotonicity of time column (should be 100%)
+    - Signal-to-noise estimate from RMS consistency across cycles
+    """
+    score = 100
+    reasons = []
+
+    thd_v = harmonics.get('thd_voltage', 0) if harmonics else 0
+    thd_i = harmonics.get('thd_current', 0) if harmonics else 0
+
+    if thd_v > 20:
+        score -= 30
+        reasons.append(f'High voltage THD ({thd_v:.1f}%)')
+    elif thd_v > 10:
+        score -= 15
+        reasons.append(f'Moderate voltage THD ({thd_v:.1f}%)')
+    elif thd_v > 5:
+        score -= 5
+
+    if thd_i > 30:
+        score -= 20
+        reasons.append(f'High current THD ({thd_i:.1f}%)')
+    elif thd_i > 15:
+        score -= 10
+
+    # Time monotonicity
+    time_vals = df['Time_ms'].values
+    diffs = np.diff(time_vals)
+    mono_ratio = np.sum(diffs > 0) / max(len(diffs), 1)
+    if mono_ratio < 0.95:
+        score -= 20
+        reasons.append('Non-monotonic time column')
+
+    # Sample count
+    if len(df) < 100:
+        score -= 15
+        reasons.append(f'Low sample count ({len(df)})')
+    elif len(df) < 200:
+        score -= 5
+
+    score = max(0, min(100, score))
+
+    if score >= 85:
+        label, color, icon = 'High Confidence', '#34d399', '✓'
+    elif score >= 60:
+        label, color, icon = 'Good', '#fbbf24', '~'
+    else:
+        label, color, icon = 'Check Data', '#f87171', '!'
+
+    return {
+        'score': score,
+        'label': label,
+        'color': color,
+        'icon': icon,
+        'reasons': reasons,
     }

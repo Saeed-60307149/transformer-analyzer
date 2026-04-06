@@ -22,21 +22,51 @@ A professional-grade Flask web application for analyzing transformer test data a
 - **Drag & Drop Upload**: Modern file upload with drag-and-drop support
 - **Fully Responsive**: Works on desktop, tablet, and mobile
 
+## Project Structure
+
+```
+transformer-analyzer/
+├── app/
+│   ├── __init__.py             # Flask app factory (empty, marks package)
+│   ├── main.py                 # Flask app with routes & create_app()
+│   ├── static/
+│   │   ├── css/style.css       # Dark-theme UI
+│   │   └── js/app.js           # Frontend logic & Chart.js charts
+│   ├── templates/
+│   │   └── index.html          # Main SPA template
+│   └── utils/
+│       ├── __init__.py         # (empty, marks package)
+│       ├── parser.py           # Universal data parser
+│       ├── calculator.py       # Equivalent circuit calculations
+│       └── report.py           # HTML report generator
+├── tests/
+│   └── test_app.py             # Comprehensive test suite
+├── Dockerfile                  # Docker deployment
+├── requirements.txt            # Python dependencies
+├── wsgi.py                     # Production WSGI entry point
+└── README.md
+```
+
 ## Quick Start
 
 ```bash
-# Clone the repository
-git clone https://github.com/Saeed-60307149/transformer-analyzer.git
-cd transformer-analyzer
-
-# Install dependencies
+# 1. Install dependencies
 pip install -r requirements.txt
 
-# Run the app
-python run.py
+# 2. Run the app (development)
+flask --app app.main:create_app run --debug
+
+# OR using the WSGI entry point directly
+python wsgi.py
 ```
 
 Open `http://localhost:5000` in your browser.
+
+## Running with Gunicorn (Production)
+
+```bash
+gunicorn "app.main:create_app()" -w 4 -b 0.0.0.0:5000
+```
 
 ## Docker Deployment
 
@@ -48,60 +78,6 @@ docker build -t transformer-analyzer .
 docker run -p 5000:5000 transformer-analyzer
 ```
 
-## Deploy Instructions
-
-### Local/Dev
-```bash
-pip install -r requirements.txt
-python run.py
-```
-
-### Docker Local
-```bash
-docker build -t transformer-analyzer .
-docker run -p 5000:5000 -e PORT=5000 transformer-analyzer
-```
-
-### Production (CI/CD)
-1. Push to `main` → GitHub Actions runs tests + pushes Docker to GHCR (`ghcr.io/{owner}/transformer-analyzer:latest`)
-2. Deploy from GHCR:
-   - **Server/VM**: `docker pull ghcr.io/{owner}/transformer-analyzer:latest && docker run -d -p 80:5000 ...`
-   - **Railway**: Connect repo, set builder to Docker, or use `railway up` manually
-   - **Kubernetes/Docker Swarm**: Use image directly
-
-**Secrets**: `GITHUB_TOKEN` (auto). Extend `deploy` job in `.github/workflows/ci-cd.yml` for auto-deploy (SSH, etc.).
-
-See TODO.md for setup status.
-
-## Project Structure
-
-```
-transformer-analyzer/
-├── app/
-│   ├── __init__.py
-│   ├── main.py                 # Flask app with routes
-│   ├── static/
-│   │   ├── css/style.css       # Enhanced dark-theme UI
-│   │   └── js/app.js           # Frontend logic & Chart.js
-│   ├── templates/
-│   │   └── index.html          # Main SPA template
-│   └── utils/
-│       ├── __init__.py
-│       ├── parser.py           # Universal data parser
-│       ├── calculator.py       # Equivalent circuit calculations
-│       └── report.py           # HTML report generator
-├── tests/
-│   └── test_app.py             # Comprehensive test suite
-├── .github/
-│   └── workflows/
-│       └── ci-cd.yml           # CI/CD pipeline
-├── Dockerfile                  # Docker deployment
-├── requirements.txt
-├── run.py                      # Dev entry point
-├── wsgi.py                     # Production WSGI
-└── README.md
-```
-
 ## Supported Data Formats
 
 - **Festo Didactic LVDAC-EMS** oscilloscope exports (CSV with `,,` double-comma or TSV with double-tab)
@@ -109,6 +85,14 @@ transformer-analyzer/
 - Tab-separated files (.txt, .tsv)
 - Semicolon-separated files
 - Files with or without metadata headers
+- Files with or without a Power column (computed automatically if absent)
+
+## Running Tests
+
+```bash
+pip install pytest pytest-cov
+pytest tests/ -v --cov=app
+```
 
 ## Evaluation Rubric Alignment
 
@@ -118,14 +102,7 @@ transformer-analyzer/
 | **Code Efficiency & Structure (15%)** | Clean MVC architecture, modular utils, type hints, docstrings |
 | **Visualization & Report (25%)** | 10+ interactive Chart.js visualizations, SVG circuit diagram, exportable HTML report |
 | **Presentation & Intuitiveness (15%)** | Dark theme UI, drag-drop upload, tabbed results, auto-detect test type |
-| **Creativity & Problem Solving (15%)** | Harmonic analysis, auto-format detection, edge case handling, CI/CD pipeline |
-
-## Testing
-
-```bash
-pip install pytest pytest-cov
-pytest tests/ -v --cov=app
-```
+| **Creativity & Problem Solving (15%)** | Harmonic analysis, auto-format detection, edge case handling |
 
 ## Acknowledgments
 
