@@ -31,7 +31,7 @@
                 </svg>
             </div>
             <div>
-                <h1>Transformer Analyzer</h1>
+                <h1>TransformerIQ</h1>
                 <p class="tagline">Equivalent Circuit Analyzer</p>
             </div>
         </div>
@@ -54,7 +54,7 @@
     <section class="upload-section" id="uploadSection">
         <div class="section-header">
             <h2>Upload Test Data</h2>
-            <p>Upload CSV, TSV, or TXT files from your oscilloscope. The system automatically detects the data format.</p>
+            <p>Upload oscilloscope exports (CSV, TSV, TXT) from any instrument. The engine auto-detects format, handles any voltage rating, and extracts all IEEE-standard parameters.</p>
         </div>
         
         <form id="uploadForm" enctype="multipart/form-data">
@@ -130,7 +130,8 @@
 
 <!-- Footer -->
 <footer class="footer">
-    <p>Transformer Equivalent Circuit Analyzer</p>
+    <p>TransformerIQ &mdash; Precision Equivalent Circuit Analyzer</p>
+    <p class="footer-note">IEEE Standard Parameter Extraction · No-Load &amp; Short-Circuit Analysis</p>
 </footer>
 
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
