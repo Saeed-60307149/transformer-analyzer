@@ -504,27 +504,97 @@ tr:hover td { background: rgba(56,189,248,0.055); transition: background 0.15s; 
 /* ────────────────────────────────────────────────────────────────────────
    REPORT TAB
 ──────────────────────────────────────────────────────────────────────── */
-.report-actions { display: flex; gap: 14px; margin-bottom: 26px; flex-wrap: wrap; }
+/* ── Export button (standalone) ─────────────────────────────────────────── */
 .btn-export {
   display: inline-flex; align-items: center; gap: 9px;
-  padding: 12px 30px; border-radius: var(--r-sm);
+  padding: 11px 26px; border-radius: var(--r-sm);
   font-family: var(--font); font-size: 14px; font-weight: 600;
   cursor: pointer; transition: all 0.25s;
   background: linear-gradient(135deg, var(--cyan), var(--purple));
   color: #fff; border: none;
   box-shadow: var(--shadow-btn);
 }
-.btn-export.secondary {
-  background: var(--surface); border: 1px solid var(--border);
-  color: var(--text); box-shadow: var(--shadow-sm);
-}
-.btn-export:hover { transform: translateY(-2px); filter: brightness(1.1); }
+.btn-export:hover { transform: translateY(-2px); filter: brightness(1.12); }
 
-.report-preview {
-  background: #ffffff; color: #1a1a2e;
-  border-radius: var(--r); overflow: auto; max-height: 640px;
+/* ── Report panel hero bar ──────────────────────────────────────────────── */
+.rp-hero {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 18px 22px;
+  margin-bottom: 20px;
+  backdrop-filter: blur(12px);
   box-shadow: var(--shadow-card);
 }
+.rp-hero-title {
+  font-family: var(--font-serif); font-size: 18px;
+  background: linear-gradient(135deg, var(--cyan), var(--purple));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.rp-hero-sub { font-size: 12px; color: var(--text-dim); margin-top: 3px; }
+.rp-export-btn { flex-shrink: 0; }
+
+/* ── Report sections grid ───────────────────────────────────────────────── */
+.rp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+.rp-section {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 16px 18px;
+  backdrop-filter: blur(10px);
+  transition: border-color 0.25s, transform 0.25s;
+}
+.rp-section:hover {
+  border-color: var(--border-hi);
+  transform: translateY(-2px);
+}
+.rp-section-head {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 600; color: var(--text);
+  margin-bottom: 12px; padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.rp-section-tag {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 6px;
+  font-size: 11px; font-weight: 700; flex-shrink: 0;
+}
+.rp-section-tag.nl   { background: rgba(56,189,248,0.18); color: var(--cyan); }
+.rp-section-tag.sc   { background: rgba(244,114,182,0.18); color: var(--pink); }
+.rp-section-tag.comb { background: rgba(129,140,248,0.18); color: var(--purple); }
+.rp-section-tag.har  { background: rgba(52,211,153,0.18);  color: var(--green); }
+
+.rp-conf {
+  border: 1px solid; border-radius: 12px;
+  font-size: 10px; font-weight: 700;
+  padding: 2px 8px; line-height: 1.4;
+  margin-left: auto;
+}
+
+.rp-row {
+  display: flex; align-items: baseline;
+  justify-content: space-between; gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(56,189,248,0.06);
+}
+.rp-row:last-child { border-bottom: none; }
+.rp-label {
+  font-size: 12px; color: var(--text-dim); flex-shrink: 0;
+}
+.rp-value {
+  font-family: var(--font-mono); font-size: 13px;
+  font-weight: 600; color: var(--text);
+  text-align: right;
+}
+.rp-unit { font-size: 10px; color: var(--text-muted); font-weight: 400; }
 
 /* ────────────────────────────────────────────────────────────────────────
    CONFIDENCE BADGE
@@ -564,7 +634,7 @@ tr:hover td { background: rgba(56,189,248,0.055); transition: background 0.15s; 
 }
 @media print {
   .bg-grid, .header, .footer, .tab-bar,
-  .upload-section, .report-actions { display: none !important; }
+  .upload-section, .rp-hero { display: none !important; }
   .results-section, .tab-panel { display: block !important; }
   body { background: #fff; color: #000; }
 }
@@ -614,5 +684,6 @@ html.light-mode .kpi-value { text-shadow: none; }
 html.light-mode .tab.active { text-shadow: none; }
 html.light-mode td { color: var(--text); }
 html.light-mode th { background: rgba(220,232,248,0.9); }
-html.light-mode .report-preview { background: #f8fafc; }
+html.light-mode .rp-section { background: rgba(220,232,248,0.7); }
+html.light-mode .rp-hero    { background: rgba(220,232,248,0.8); }
 html.light-mode .status-dot { box-shadow: 0 0 8px rgba(5,150,105,0.6); }

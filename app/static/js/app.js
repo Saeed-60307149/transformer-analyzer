@@ -628,142 +628,87 @@ function renderReportPreview(data) {
     const el = panel('report');
     if (!el) return;
 
-    const ts = new Date().toLocaleString();
-    let html = `<div class="report-actions">
-        <button class="btn-export" onclick="exportReport()">
-            <svg viewBox="0 0 24 24" fill="none" width="20" height="20"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 17v2a2 2 0 002 2h10a2 2 0 002-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Export PDF
-        </button>
-        <button class="btn-export secondary" onclick="printReport()">
-            <svg viewBox="0 0 24 24" fill="none" width="20" height="20"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Print Report
-        </button>
-    </div>
-    <div class="report-preview">
-        <div style="text-align:center;border-bottom:3px solid #0f3460;padding-bottom:16px;margin-bottom:24px;">
-            <h2 style="color:#0f3460;font-size:22px;margin-bottom:4px;">Transformer Equivalent Circuit Analysis</h2>
-            <p style="color:#666;font-size:13px;">${ts}</p>
+    const nl  = data.no_load       || {};
+    const sc  = data.short_circuit || {};
+    const c   = data.combined      || {};
+    const har = data.harmonics     || {};
+
+    // Helper: render a compact param row
+    const row = (label, value, unit = '') => `
+        <div class="rp-row">
+            <span class="rp-label">${label}</span>
+            <span class="rp-value">${value}${unit ? '<span class="rp-unit"> '+unit+'</span>' : ''}</span>
         </div>`;
 
-    let sectionIndex = 1;
+    // Build section blocks
+    let sections = '';
 
     if (data.no_load) {
-        const nl = data.no_load;
-        html += `<h3 style="color:#0f3460;margin:20px 0 10px;">${sectionIndex++}. No-Load (Open Circuit) Test Results</h3>
-            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
-            <tr style="background:#0f3460;color:#fff;">
-                <th style="padding:8px 12px;text-align:left;">Parameter</th>
-                <th style="padding:8px 12px;text-align:left;">Symbol</th>
-                <th style="padding:8px 12px;text-align:right;">Value</th>
-                <th style="padding:8px 12px;">Unit</th>
-            </tr>`;
-        [
-            ['Open-Circuit Voltage', 'V_OC',    fmt(nl.V_oc, 4),          'V'],
-            ['No-Load Current',      'I_0',     fmt(nl.I_o, 6),           'A'],
-            ['Core Loss',            'P_core',  fmt(nl.P_core, 4),        'W'],
-            ['Power Factor',         'cos φ₀',  fmt(nl.PF_nl, 6),         '—'],
-            ['No-Load Angle',        'φ₀',      fmt(nl.theta_nl_deg, 2),  '°'],
-            ['Core Loss Current',    'I_c',     fmt(nl.I_c, 6),           'A'],
-            ['Magnetizing Current',  'I_m',     fmt(nl.I_m, 6),           'A'],
-            ['Core Resistance',      'R_c',     fmt(nl.R_c, 2),           'Ω'],
-            ['Magnetizing Reactance','X_m',     fmt(nl.X_m, 2),           'Ω'],
-            ['Apparent Power',       'S₀',      fmt(nl.S_o, 4),           'VA'],
-            ['Reactive Power',       'Q₀',      fmt(nl.Q_o, 4),           'VAR'],
-            ['Frequency',            'f',       fmt(nl.frequency_Hz, 1),  'Hz'],
-        ].forEach(([name, sym, val, unit], i) => {
-            const bg = i % 2 === 0 ? '#f8f9fa' : '#fff';
-            html += `<tr style="background:${bg};border-bottom:1px solid #ddd;">
-                <td style="padding:7px 12px;">${name}</td>
-                <td style="padding:7px 12px;font-family:monospace;color:#555;">${sym}</td>
-                <td style="padding:7px 12px;text-align:right;font-family:monospace;font-weight:600;color:#0f3460;">${val}</td>
-                <td style="padding:7px 12px;color:#777;">${unit}</td></tr>`;
-        });
-        html += '</table>';
+        const nlConf = data.no_load.confidence;
+        const badge  = nlConf ? `<span class="rp-conf" style="background:${nlConf.color}22;border-color:${nlConf.color}55;color:${nlConf.color}">${nlConf.icon} ${nlConf.label}</span>` : '';
+        sections += `<div class="rp-section">
+            <div class="rp-section-head"><span class="rp-section-tag nl">OC</span> No-Load Test ${badge}</div>
+            ${row('V<sub>OC</sub>', fmt(nl.V_oc, 3), 'V')}
+            ${row('I₀', fmt(nl.I_o, 4), 'A')}
+            ${row('P<sub>core</sub>', fmt(nl.P_core, 3), 'W')}
+            ${row('cos φ₀', fmt(nl.PF_nl, 4))}
+            ${row('R<sub>c</sub>', fmt(nl.R_c, 2), 'Ω')}
+            ${row('X<sub>m</sub>', fmt(nl.X_m, 2), 'Ω')}
+            ${row('f', fmt(nl.frequency_Hz, 1), 'Hz')}
+        </div>`;
     }
 
     if (data.short_circuit) {
-        const sc = data.short_circuit;
-        html += `<h3 style="color:#0f3460;margin:20px 0 10px;">${sectionIndex++}. Short-Circuit Test Results</h3>
-            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
-            <tr style="background:#0f3460;color:#fff;">
-                <th style="padding:8px 12px;text-align:left;">Parameter</th>
-                <th style="padding:8px 12px;text-align:left;">Symbol</th>
-                <th style="padding:8px 12px;text-align:right;">Value</th>
-                <th style="padding:8px 12px;">Unit</th>
-            </tr>`;
-        [
-            ['SC Voltage',            'V_SC',     fmt(sc.V_sc, 4),         'V'],
-            ['SC Current',            'I_SC',     fmt(sc.I_sc, 6),         'A'],
-            ['Copper Loss',           'P_cu',     fmt(sc.P_cu, 4),         'W'],
-            ['Power Factor',          'cos φ_SC', fmt(sc.PF_sc, 6),        '—'],
-            ['SC Angle',              'φ_SC',     fmt(sc.theta_sc_deg, 2), '°'],
-            ['Equivalent Impedance',  'Z_eq',     fmt(sc.Z_eq, 4),         'Ω'],
-            ['Equivalent Resistance', 'R_eq',     fmt(sc.R_eq, 4),         'Ω'],
-            ['Equivalent Reactance',  'X_eq',     fmt(sc.X_eq, 4),         'Ω'],
-            ['R₁ (approx)',           'R₁',       fmt(sc.R1_approx, 4),    'Ω'],
-            ['X₁ (approx)',           'X₁',       fmt(sc.X1_approx, 4),    'Ω'],
-            ['Apparent Power',        'S_SC',     fmt(sc.S_sc, 4),         'VA'],
-            ['Frequency',             'f',        fmt(sc.frequency_Hz, 1), 'Hz'],
-        ].forEach(([name, sym, val, unit], i) => {
-            const bg = i % 2 === 0 ? '#f8f9fa' : '#fff';
-            html += `<tr style="background:${bg};border-bottom:1px solid #ddd;">
-                <td style="padding:7px 12px;">${name}</td>
-                <td style="padding:7px 12px;font-family:monospace;color:#555;">${sym}</td>
-                <td style="padding:7px 12px;text-align:right;font-family:monospace;font-weight:600;color:#0f3460;">${val}</td>
-                <td style="padding:7px 12px;color:#777;">${unit}</td></tr>`;
-        });
-        html += '</table>';
+        const scConf = data.short_circuit.confidence;
+        const badge  = scConf ? `<span class="rp-conf" style="background:${scConf.color}22;border-color:${scConf.color}55;color:${scConf.color}">${scConf.icon} ${scConf.label}</span>` : '';
+        sections += `<div class="rp-section">
+            <div class="rp-section-head"><span class="rp-section-tag sc">SC</span> Short-Circuit Test ${badge}</div>
+            ${row('V<sub>SC</sub>', fmt(sc.V_sc, 3), 'V')}
+            ${row('I<sub>SC</sub>', fmt(sc.I_sc, 4), 'A')}
+            ${row('P<sub>cu</sub>', fmt(sc.P_cu, 3), 'W')}
+            ${row('cos φ<sub>SC</sub>', fmt(sc.PF_sc, 4))}
+            ${row('Z<sub>eq</sub>', fmt(sc.Z_eq, 4), 'Ω')}
+            ${row('R<sub>eq</sub>', fmt(sc.R_eq, 4), 'Ω')}
+            ${row('X<sub>eq</sub>', fmt(sc.X_eq, 4), 'Ω')}
+        </div>`;
     }
 
     if (data.combined) {
-        const c = data.combined;
-        html += `<h3 style="color:#0f3460;margin:20px 0 10px;">${sectionIndex++}. Combined Analysis</h3>
-            <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
-            <tr style="background:#0f3460;color:#fff;"><th style="padding:8px 12px;text-align:left;">Parameter</th><th style="padding:8px 12px;text-align:right;">Value</th><th style="padding:8px 12px;">Unit</th></tr>`;
-        [
-            ['Rated Apparent Power',       fmt(c.S_rated, 1) + ' VA',            'VA'],
-            ['Full-Load Losses',            fmt(c.total_loss_fl, 4),              'W'],
-            ['Load for Max Efficiency',     fmt(c.x_max_efficiency * 100, 1) + '%', 'of rated'],
-            ['Maximum Efficiency (UPF)',    fmt(c.max_efficiency, 2) + '%',       '—'],
-            ['Percent Impedance (%Z)',      fmt(c.Z_percent, 2) + '%',            '—'],
-            ['Percent Resistance (%R)',     fmt(c.R_percent, 2) + '%',            '—'],
-        ].forEach(([name, val, unit], i) => {
-            const bg = i % 2 === 0 ? '#f8f9fa' : '#fff';
-            html += `<tr style="background:${bg};border-bottom:1px solid #ddd;">
-                <td style="padding:7px 12px;">${name}</td>
-                <td style="padding:7px 12px;text-align:right;font-family:monospace;font-weight:600;color:#0f3460;">${val}</td>
-                <td style="padding:7px 12px;color:#777;">${unit}</td></tr>`;
-        });
-        html += '</table>';
-
-        // VR sub-table
-        html += `<h4 style="color:#0f3460;margin:16px 0 8px;">Voltage Regulation</h4>
-            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
-            <tr style="background:#0f3460;color:#fff;"><th style="padding:8px 12px;">PF</th><th style="padding:8px 12px;text-align:right;">VR Lagging (%)</th><th style="padding:8px 12px;text-align:right;">VR Leading (%)</th></tr>`;
-        c.voltage_regulation.forEach((vr, i) => {
-            const bg = i % 2 === 0 ? '#f8f9fa' : '#fff';
-            html += `<tr style="background:${bg};border-bottom:1px solid #ddd;">
-                <td style="padding:7px 12px;">${vr.pf}</td>
-                <td style="padding:7px 12px;text-align:right;font-family:monospace;font-weight:600;color:#0f3460;">${fmt(vr.vr_lagging, 4)}</td>
-                <td style="padding:7px 12px;text-align:right;font-family:monospace;font-weight:600;color:#0f3460;">${fmt(vr.vr_leading, 4)}</td></tr>`;
-        });
-        html += '</table>';
+        const eff  = c.max_efficiency   != null ? fmt(c.max_efficiency, 2) + '%' : '—';
+        const xmax = c.x_max_efficiency != null ? fmt(c.x_max_efficiency * 100, 1) + '%' : '—';
+        const zp   = c.Z_percent        != null ? fmt(c.Z_percent, 2) + '%'       : '—';
+        sections += `<div class="rp-section">
+            <div class="rp-section-head"><span class="rp-section-tag comb">∑</span> Combined Analysis</div>
+            ${row('S<sub>rated</sub>', fmt(c.S_rated, 1), 'VA')}
+            ${row('η<sub>max</sub> (UPF)', eff)}
+            ${row('Load @ η<sub>max</sub>', xmax)}
+            ${row('%Z', zp)}
+            ${row('Total losses (FL)', fmt(c.total_loss_fl, 3), 'W')}
+        </div>`;
     }
 
-    const harmonics = data.harmonics || {};
-    if (harmonics.no_load) {
-        const h = harmonics.no_load;
-        html += `<h3 style="color:#0f3460;margin:20px 0 10px;">${sectionIndex++}. Harmonic Analysis — No-Load</h3>
-            <p style="margin-bottom:8px;">THD Voltage: <strong>${h.thd_voltage}%</strong> &nbsp;|&nbsp; THD Current: <strong>${h.thd_current}%</strong></p>`;
-    }
-    if (harmonics.short_circuit) {
-        const h = harmonics.short_circuit;
-        html += `<h3 style="color:#0f3460;margin:20px 0 10px;">${sectionIndex++}. Harmonic Analysis — Short-Circuit</h3>
-            <p style="margin-bottom:8px;">THD Voltage: <strong>${h.thd_voltage}%</strong> &nbsp;|&nbsp; THD Current: <strong>${h.thd_current}%</strong></p>`;
+    if (har.no_load || har.short_circuit) {
+        let hrows = '';
+        if (har.no_load)       hrows += row('THD<sub>V</sub> (OC)', har.no_load.thd_voltage + '%') + row('THD<sub>I</sub> (OC)', har.no_load.thd_current + '%');
+        if (har.short_circuit) hrows += row('THD<sub>V</sub> (SC)', har.short_circuit.thd_voltage + '%') + row('THD<sub>I</sub> (SC)', har.short_circuit.thd_current + '%');
+        sections += `<div class="rp-section">
+            <div class="rp-section-head"><span class="rp-section-tag har">∿</span> Harmonic Analysis</div>
+            ${hrows}
+        </div>`;
     }
 
-    html += '</div>'; // close .report-preview
-    el.innerHTML = html;
+    el.innerHTML = `
+        <div class="rp-hero">
+            <div class="rp-hero-text">
+                <p class="rp-hero-title">Analysis Report</p>
+                <p class="rp-hero-sub">IEEE-standard parameter extraction · ${new Date().toLocaleDateString()}</p>
+            </div>
+            <button class="btn-export rp-export-btn" onclick="exportReport()">
+                <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 17v2a2 2 0 002 2h10a2 2 0 002-2v-2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Export PDF
+            </button>
+        </div>
+        <div class="rp-grid">${sections}</div>`;
 }
 
 // ── Export / Print ────────────────────────────────────────────────────────────
@@ -789,8 +734,6 @@ async function exportReport() {
         setTimeout(() => win.print(), 600);
     } catch (err) { showAlert('Export failed: ' + err.message, 'error'); }
 }
-
-function printReport() { window.print(); }
 
 // ── Confidence Badge ──────────────────────────────────────────────────────────
 function confidenceBadge(conf) {
