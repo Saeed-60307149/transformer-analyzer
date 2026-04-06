@@ -37,19 +37,13 @@ jobs:
         if: always()
         run: echo "✅ Tests Completed"
 
-  deploy:
-    name: Deploy to Railway
-    needs: test                    # Only deploy if tests pass
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'   # Deploy only on push to main
+deploy:
+  name: Deploy to Render
+  needs: test
+  runs-on: ubuntu-latest
+  if: github.ref == 'refs/heads/main'
 
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
-
-      - name: Deploy to Railway
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: railway up --service transformer-analyzer
+  steps:
+    - name: Trigger Render Deploy
+      run: |
+        curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
