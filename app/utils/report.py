@@ -23,7 +23,7 @@ def _f(value, digits=4, suffix=''):
 
 # ── Inline SVG helpers ────────────────────────────────────────────────────────
 
-def _svg_bar(data_points, width=520, height=220, color='#38bdf8', bg='#0d1a32'):
+def _svg_bar(data_points, width=520, height=220, color='#0284c7', bg='#f0f4fa'):
     """Premium dark-theme bar chart as inline SVG."""
     if not data_points:
         return ''
@@ -40,10 +40,10 @@ def _svg_bar(data_points, width=520, height=220, color='#38bdf8', bg='#0d1a32'):
         f'<rect width="{width}" height="{height}" rx="10" fill="{bg}"/>',
         # Y-axis line
         f'<line x1="{pad_l}" y1="{pad_t}" x2="{pad_l}" y2="{pad_t+chart_h}" '
-        f'stroke="rgba(255,255,255,0.1)" stroke-width="1"/>',
+        f'stroke="rgba(0,0,0,0.15)" stroke-width="1"/>',
         # X-axis line
         f'<line x1="{pad_l}" y1="{pad_t+chart_h}" x2="{width-pad_r}" y2="{pad_t+chart_h}" '
-        f'stroke="rgba(255,255,255,0.1)" stroke-width="1"/>',
+        f'stroke="rgba(0,0,0,0.15)" stroke-width="1"/>',
     ]
 
     # Grid lines
@@ -52,9 +52,9 @@ def _svg_bar(data_points, width=520, height=220, color='#38bdf8', bg='#0d1a32'):
         gv = max_val * step
         parts.append(
             f'<line x1="{pad_l}" y1="{gy}" x2="{width-pad_r}" y2="{gy}" '
-            f'stroke="rgba(255,255,255,0.05)" stroke-width="1" stroke-dasharray="4 4"/>'
+            f'stroke="rgba(0,0,0,0.07)" stroke-width="1" stroke-dasharray="4 4"/>'
             f'<text x="{pad_l-6}" y="{gy+4}" text-anchor="end" '
-            f'fill="rgba(255,255,255,0.35)" font-size="10" font-family="IBM Plex Mono,monospace">'
+            f'fill="rgba(0,0,0,0.45)" font-size="10" font-family="IBM Plex Mono,monospace">'
             f'{gv:.1f}</text>'
         )
 
@@ -84,7 +84,7 @@ def _svg_bar(data_points, width=520, height=220, color='#38bdf8', bg='#0d1a32'):
         # X label
         parts.append(
             f'<text x="{x + bar_w/2:.0f}" y="{pad_t+chart_h+18}" text-anchor="middle" '
-            f'fill="rgba(255,255,255,0.5)" font-size="10" font-family="DM Sans,sans-serif">'
+            f'fill="rgba(0,0,0,0.55)" font-size="10" font-family="DM Sans,sans-serif">'
             f'{lbl}</text>'
         )
 
@@ -95,7 +95,7 @@ def _svg_bar(data_points, width=520, height=220, color='#38bdf8', bg='#0d1a32'):
     )
 
 
-def _svg_donut(slices, width=260, height=260, bg='#0d1a32'):
+def _svg_donut(slices, width=260, height=260, bg='#f0f4fa'):
     """Premium donut chart as inline SVG."""
     if not slices or sum(s['value'] for s in slices if s['value']) == 0:
         return ''
@@ -134,9 +134,9 @@ def _svg_donut(slices, width=260, height=260, bg='#0d1a32'):
 
     # Center text
     parts.append(
-        f'<text x="{cx}" y="{cy-6}" text-anchor="middle" fill="white" '
+        f'<text x="{cx}" y="{cy-6}" text-anchor="middle" fill="#0d1829" '
         f'font-size="13" font-weight="700" font-family="DM Sans,sans-serif">Loss</text>'
-        f'<text x="{cx}" y="{cy+12}" text-anchor="middle" fill="rgba(255,255,255,0.5)" '
+        f'<text x="{cx}" y="{cy+12}" text-anchor="middle" fill="rgba(0,0,0,0.45)" '
         f'font-size="11" font-family="DM Sans,sans-serif">Split</text>'
     )
 
@@ -149,7 +149,7 @@ def _svg_donut(slices, width=260, height=260, bg='#0d1a32'):
         ly = legend_y + i * 18
         parts.append(
             f'<rect x="10" y="{ly}" width="10" height="10" rx="2" fill="{color}"/>'
-            f'<text x="26" y="{ly+9}" fill="rgba(255,255,255,0.7)" '
+            f'<text x="26" y="{ly+9}" fill="rgba(0,0,0,0.65)" '
             f'font-size="10" font-family="DM Sans,sans-serif">'
             f'{s["label"]}: {pct:.1f}%</text>'
         )
@@ -182,51 +182,51 @@ def _svg_circuit(nl, sc):
     <filter id="glow"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
   </defs>
   <!-- Background -->
-  <rect width="820" height="350" rx="12" fill="#0a1628"/>
+  <rect width="820" height="350" rx="12" fill="#eef3fa"/>
   <!-- Main conductors -->
-  <line x1="40" y1="90" x2="120" y2="90" stroke="#4a5a7a" stroke-width="2.5"/>
+  <line x1="40" y1="90" x2="120" y2="90" stroke="#6b7ea0" stroke-width="2.5"/>
   <!-- R1 -->
   <rect x="120" y="76" width="72" height="28" rx="4" fill="none" stroke="#38bdf8" stroke-width="2" filter="url(#glow)"/>
   <text x="156" y="93" text-anchor="middle" fill="#38bdf8" font-family="IBM Plex Mono,monospace" font-size="11" font-weight="600">R₁={R1}Ω</text>
-  <line x1="192" y1="90" x2="232" y2="90" stroke="#4a5a7a" stroke-width="2.5"/>
+  <line x1="192" y1="90" x2="232" y2="90" stroke="#6b7ea0" stroke-width="2.5"/>
   <!-- X1 -->
   <rect x="232" y="76" width="72" height="28" rx="4" fill="none" stroke="#818cf8" stroke-width="2" filter="url(#glow)"/>
   <text x="268" y="93" text-anchor="middle" fill="#818cf8" font-family="IBM Plex Mono,monospace" font-size="11" font-weight="600">X₁={X1}Ω</text>
-  <line x1="304" y1="90" x2="370" y2="90" stroke="#4a5a7a" stroke-width="2.5"/>
+  <line x1="304" y1="90" x2="370" y2="90" stroke="#6b7ea0" stroke-width="2.5"/>
   <!-- Node dot -->
   <circle cx="370" cy="90" r="4" fill="#38bdf8" filter="url(#glow)"/>
   <!-- Shunt branch Rc -->
-  <line x1="370" y1="90" x2="370" y2="128" stroke="#4a5a7a" stroke-width="2"/>
+  <line x1="370" y1="90" x2="370" y2="128" stroke="#6b7ea0" stroke-width="2"/>
   <rect x="342" y="128" width="56" height="68" rx="4" fill="none" stroke="#34d399" stroke-width="2" filter="url(#glow)"/>
   <text x="370" y="158" text-anchor="middle" fill="#34d399" font-family="IBM Plex Mono,monospace" font-size="10" font-weight="600">Rc</text>
   <text x="370" y="174" text-anchor="middle" fill="#34d399" font-family="IBM Plex Mono,monospace" font-size="9">{Rc}Ω</text>
-  <line x1="370" y1="196" x2="370" y2="275" stroke="#4a5a7a" stroke-width="2"/>
+  <line x1="370" y1="196" x2="370" y2="275" stroke="#6b7ea0" stroke-width="2"/>
   <!-- Shunt branch Xm -->
-  <line x1="370" y1="90" x2="470" y2="90" stroke="#4a5a7a" stroke-width="2.5"/>
+  <line x1="370" y1="90" x2="470" y2="90" stroke="#6b7ea0" stroke-width="2.5"/>
   <circle cx="470" cy="90" r="4" fill="#38bdf8" filter="url(#glow)"/>
-  <line x1="470" y1="90" x2="470" y2="128" stroke="#4a5a7a" stroke-width="2"/>
+  <line x1="470" y1="90" x2="470" y2="128" stroke="#6b7ea0" stroke-width="2"/>
   <rect x="442" y="128" width="56" height="68" rx="4" fill="none" stroke="#fbbf24" stroke-width="2" filter="url(#glow)"/>
   <text x="470" y="158" text-anchor="middle" fill="#fbbf24" font-family="IBM Plex Mono,monospace" font-size="10" font-weight="600">Xm</text>
   <text x="470" y="174" text-anchor="middle" fill="#fbbf24" font-family="IBM Plex Mono,monospace" font-size="9">{Xm}Ω</text>
-  <line x1="470" y1="196" x2="470" y2="275" stroke="#4a5a7a" stroke-width="2"/>
+  <line x1="470" y1="196" x2="470" y2="275" stroke="#6b7ea0" stroke-width="2"/>
   <!-- Connect nodes -->
-  <line x1="470" y1="90" x2="510" y2="90" stroke="#4a5a7a" stroke-width="2.5"/>
+  <line x1="470" y1="90" x2="510" y2="90" stroke="#6b7ea0" stroke-width="2.5"/>
   <!-- R2 -->
   <rect x="510" y="76" width="72" height="28" rx="4" fill="none" stroke="#38bdf8" stroke-width="2" filter="url(#glow)"/>
   <text x="546" y="93" text-anchor="middle" fill="#38bdf8" font-family="IBM Plex Mono,monospace" font-size="11" font-weight="600">R₂'={R2}Ω</text>
-  <line x1="582" y1="90" x2="610" y2="90" stroke="#4a5a7a" stroke-width="2.5"/>
+  <line x1="582" y1="90" x2="610" y2="90" stroke="#6b7ea0" stroke-width="2.5"/>
   <!-- X2 -->
   <rect x="610" y="76" width="72" height="28" rx="4" fill="none" stroke="#818cf8" stroke-width="2" filter="url(#glow)"/>
   <text x="646" y="93" text-anchor="middle" fill="#818cf8" font-family="IBM Plex Mono,monospace" font-size="11" font-weight="600">X₂'={X2}Ω</text>
-  <line x1="682" y1="90" x2="780" y2="90" stroke="#4a5a7a" stroke-width="2.5"/>
+  <line x1="682" y1="90" x2="780" y2="90" stroke="#6b7ea0" stroke-width="2.5"/>
   <!-- Return conductor -->
-  <line x1="40" y1="275" x2="780" y2="275" stroke="#4a5a7a" stroke-width="2.5"/>
-  <line x1="40" y1="90" x2="40" y2="275" stroke="#4a5a7a" stroke-width="2.5"/>
-  <line x1="780" y1="90" x2="780" y2="275" stroke="#4a5a7a" stroke-width="2.5"/>
+  <line x1="40" y1="275" x2="780" y2="275" stroke="#6b7ea0" stroke-width="2.5"/>
+  <line x1="40" y1="90" x2="40" y2="275" stroke="#6b7ea0" stroke-width="2.5"/>
+  <line x1="780" y1="90" x2="780" y2="275" stroke="#6b7ea0" stroke-width="2.5"/>
   <!-- Labels -->
-  <text x="22" y="185" text-anchor="middle" fill="#8ba3c7" font-size="12" font-weight="600"
+  <text x="22" y="185" text-anchor="middle" fill="#2c4a72" font-size="12" font-weight="600"
     transform="rotate(-90,22,185)">V₁</text>
-  <text x="798" y="185" text-anchor="middle" fill="#8ba3c7" font-size="12" font-weight="600"
+  <text x="798" y="185" text-anchor="middle" fill="#2c4a72" font-size="12" font-weight="600"
     transform="rotate(90,798,185)">V₂'</text>
   <!-- Current arrows -->
   <line x1="55" y1="78" x2="90" y2="78" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#arr)"/>
@@ -237,7 +237,7 @@ def _svg_circuit(nl, sc):
   <text x="362" y="115" text-anchor="end" fill="#34d399" font-size="10">Ic↓</text>
   <text x="482" y="115" text-anchor="start" fill="#fbbf24" font-size="10">Im↓</text>
   <!-- Summary bar -->
-  <rect x="200" y="305" width="420" height="30" rx="6" fill="rgba(56,189,248,0.08)" stroke="rgba(56,189,248,0.2)" stroke-width="1"/>
+  <rect x="200" y="305" width="420" height="30" rx="6" fill="rgba(2,132,199,0.08)" stroke="rgba(2,132,199,0.25)" stroke-width="1"/>
   <text x="410" y="325" text-anchor="middle" fill="#38bdf8" font-family="IBM Plex Mono,monospace" font-size="11">
     Zeq = {Zeq}Ω  |  Req = {Req}Ω  |  Xeq = {Xeq}Ω
   </text>
@@ -258,10 +258,10 @@ def generate_report_html(nl_results, sc_results, combined, nl_harmonics, sc_harm
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=DM+Sans:wght@300;400;500;600;700&family=Instrument+Serif&display=swap');
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --bg:#040c1a;--bg2:#08142a;--card:rgba(13,26,50,0.95);
-  --border:rgba(56,189,248,0.15);--border2:rgba(56,189,248,0.35);
-  --cyan:#38bdf8;--purple:#818cf8;--pink:#f472b6;
-  --green:#34d399;--amber:#fbbf24;--text:#e2eeff;--muted:#6a88b0;
+  --bg:#f5f7fa;--bg2:#eaecf0;--card:#ffffff;
+  --border:rgba(0,0,0,0.1);--border2:rgba(0,0,0,0.2);
+  --cyan:#0284c7;--purple:#4f46e5;--pink:#db2777;
+  --green:#059669;--amber:#b45309;--text:#0d1829;--muted:#4a5a72;
 }
 html{scroll-behavior:smooth}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);
@@ -269,14 +269,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);
 
 /* ── Cover / Header ── */
 .cover{
-  background:linear-gradient(135deg,#010a1a 0%,#061428 40%,#0a1e38 100%);
+  background:linear-gradient(135deg,#e8f0fb 0%,#dde8f7 40%,#d0e2f5 100%);
   padding:64px 48px 56px;text-align:center;position:relative;overflow:hidden;
-  border-bottom:1px solid rgba(56,189,248,0.2);
+  border-bottom:1px solid rgba(2,132,199,0.2);
 }
 .cover::before{
   content:'';position:absolute;inset:0;
-  background:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(56,189,248,0.15),transparent),
-             radial-gradient(ellipse 50% 40% at 80% 100%,rgba(129,140,248,0.1),transparent);
+  background:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(2,132,199,0.12),transparent),
+             radial-gradient(ellipse 50% 40% at 80% 100%,rgba(79,70,229,0.08),transparent);
   z-index:0;pointer-events:none;
 }
 .cover-logo,.cover h1,.cover-sub,.cover-meta,.cover-brand,.cover-team{
@@ -284,23 +284,23 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);
 }
 .cover-logo{
   display:inline-flex;align-items:center;gap:16px;margin-bottom:32px;
-  background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.2);
+  background:rgba(2,132,199,0.08);border:1px solid rgba(2,132,199,0.25);
   padding:12px 24px;border-radius:50px;
 }
-.cover-icon{width:36px;height:36px;color:#38bdf8}
+.cover-icon{width:36px;height:36px;color:#0284c7}
 .cover-brand{font-family:'Instrument Serif',Georgia,serif;font-size:22px;
-  background:linear-gradient(135deg,#e2eeff,#38bdf8);
+  background:linear-gradient(135deg,#0d1829,#0284c7);
   -webkit-background-clip:text;background-clip:text;
-  -webkit-text-fill-color:transparent;color:#38bdf8;}
+  -webkit-text-fill-color:transparent;color:#0284c7;}
 .cover h1{font-family:'Instrument Serif',Georgia,serif;font-size:48px;font-weight:400;
   line-height:1.1;margin-bottom:12px;
-  background:linear-gradient(135deg,#fff 0%,#38bdf8 60%,#818cf8 100%);
+  background:linear-gradient(135deg,#0d1829 0%,#0284c7 60%,#4f46e5 100%);
   -webkit-background-clip:text;background-clip:text;
-  -webkit-text-fill-color:transparent;color:#38bdf8;}
+  -webkit-text-fill-color:transparent;color:#0d1829;}
 .cover-sub{font-size:16px;color:var(--muted);letter-spacing:0.5px}
 .cover-meta{
   display:inline-flex;gap:32px;margin-top:32px;
-  background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
+  background:rgba(255,255,255,0.6);border:1px solid rgba(2,132,199,0.2);
   padding:16px 32px;border-radius:12px;
 }
 .meta-item{text-align:center}
@@ -310,7 +310,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);
 .team-label{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:10px}
 .team-members{display:inline-flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center}
 .team-member{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text);
-  background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.15);
+  background:rgba(2,132,199,0.08);border:1px solid rgba(2,132,199,0.2);
   padding:6px 16px;border-radius:20px;}
 .team-sep{color:var(--muted);font-size:16px;line-height:1}
 
@@ -360,15 +360,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);
 }
 table{width:100%;border-collapse:collapse}
 thead th{
-  background:rgba(56,189,248,0.08);padding:11px 16px;text-align:left;
+  background:rgba(2,132,199,0.07);padding:11px 16px;text-align:left;
   font-size:10px;text-transform:uppercase;letter-spacing:1px;
   color:var(--muted);font-weight:600;border-bottom:1px solid var(--border);
 }
 tbody td{
-  padding:10px 16px;font-size:13px;border-bottom:1px solid rgba(56,189,248,0.06);
+  padding:10px 16px;font-size:13px;border-bottom:1px solid rgba(0,0,0,0.05);color:var(--text);
 }
 tbody tr:last-child td{border-bottom:none}
-tbody tr:nth-child(even) td{background:rgba(56,189,248,0.025)}
+tbody tr:nth-child(even) td{background:rgba(2,132,199,0.03)}
 .td-sym{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted)}
 .td-val{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;color:var(--cyan);text-align:right}
 .td-val-pink{color:var(--pink)}
@@ -399,17 +399,14 @@ tbody tr:nth-child(even) td{background:rgba(56,189,248,0.025)}
 .report-footer{
   background:var(--bg2);border-top:1px solid var(--border);
   padding:28px 40px;display:flex;justify-content:space-between;align-items:center;
-  font-size:12px;color:var(--muted);
+  font-size:12px;color:var(--muted);color:#0d1829;
 }
 
 /* ── Print ── */
 @media print{
-  body{background:#fff!important;color:#000!important}
-  .cover{background:#f0f4f8!important;border-color:#ccc!important}
-  .cover h1,.cover-brand{-webkit-text-fill-color:#0f3460!important}
-  .kpi,.tbl-wrap,.circuit-box,.chart-box{background:#fff!important;border-color:#ddd!important}
-  td,th{color:#000!important}
-  .td-val,.kpi-val{color:#0f3460!important}
+  body{background:#fff!important}
+  .cover{background:linear-gradient(135deg,#e8f0fb,#d0e2f5)!important}
+  .kpi,.tbl-wrap,.circuit-box,.chart-box{background:#fff!important;border-color:#ccc!important}
 }
 """
 
