@@ -259,7 +259,6 @@ function renderOverview(data) {
         html += chartCard('Power Triangle', 'powerChart');
     }
     html += '</div>';
-    html += renderNameplate(data);
 
     el.innerHTML = html;
 
@@ -620,7 +619,6 @@ function renderCircuitDiagram(data) {
                 Zeq = ${sc.Z_eq != null ? fmt(sc.Z_eq, 2) : '?'}Ω  |  Req = ${sc.R_eq != null ? fmt(sc.R_eq, 2) : '?'}Ω  |  Xeq = ${sc.X_eq != null ? fmt(sc.X_eq, 2) : '?'}Ω
             </text>
         </svg>`;
-    el.innerHTML += renderNameplate(data);
 }
 
 // ── Report Preview ────────────────────────────────────────────────────────────
@@ -752,74 +750,6 @@ function confidenceBadge(conf) {
     </span>`;
 }
 
-// ── Nameplate Estimator ───────────────────────────────────────────────────────
-function renderNameplate(data) {
-    if (!data.no_load && !data.short_circuit) return '';
-
-    const nl = data.no_load || {};
-    const sc = data.short_circuit || {};
-    const c  = data.combined  || {};
-
-    const sRated = c.S_rated ? (c.S_rated / 1000).toFixed(3) : '—';
-    const vHV    = nl.V_oc   ? fmt(nl.V_oc, 1)   : '—';
-    const iRated = sc.I_sc   ? fmt(sc.I_sc * 1000, 1) : '—';
-    const freq   = nl.frequency_Hz || sc.frequency_Hz || 50;
-    const zPct   = c.Z_percent  ? fmt(c.Z_percent, 2)  : '—';
-    const eta    = c.max_efficiency ? fmt(c.max_efficiency, 1) : '—';
-
-    const sRaw = c.S_rated || 0;
-    const stdKVA = [0.05,0.1,0.15,0.25,0.5,0.75,1,1.5,2,3,5,7.5,10,15,25,50,75,100];
-    const kvaRaw = sRaw / 1000;
-    const snapKVA = stdKVA.reduce((a, b) => Math.abs(b - kvaRaw) < Math.abs(a - kvaRaw) ? b : a, stdKVA[0]);
-
-    return `
-    <div class="nameplate-card" style="
-        background: linear-gradient(135deg, #1a2236 0%, #0f1729 100%);
-        border: 2px solid #fbbf24;
-        border-radius: 12px;
-        padding: 24px 32px;
-        margin: 24px 0;
-        position: relative;
-        overflow: hidden;
-        font-family: var(--font-mono);
-        box-shadow: 0 0 40px rgba(251,191,36,0.15);
-    ">
-        <div style="position:absolute;inset:0;background:
-            repeating-linear-gradient(45deg,transparent,transparent 10px,
-            rgba(251,191,36,0.02) 10px,rgba(251,191,36,0.02) 11px);
-            pointer-events:none;"></div>
-        <div style="text-align:center;margin-bottom:16px;">
-            <div style="font-size:11px;letter-spacing:3px;color:#fbbf24;text-transform:uppercase;margin-bottom:4px;">
-                Estimated Nameplate
-            </div>
-            <div style="font-size:28px;font-weight:700;color:#fff;letter-spacing:-1px;">
-                ${snapKVA} kVA
-            </div>
-            <div style="font-size:11px;color:#94a3b8;margin-top:2px;">
-                Computed: ${sRated} kVA
-            </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:16px;">
-            ${[
-                ['Primary V',  vHV + ' V'],
-                ['Frequency',  freq + ' Hz'],
-                ['Rated I',    iRated + ' mA'],
-                ['%Z',         zPct + '%'],
-                ['Max η',      eta + '%'],
-                ['Temp Rise',  '~40°C'],
-            ].map(([k, v]) => `
-            <div style="text-align:center;">
-                <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:1px;">${k}</div>
-                <div style="font-size:16px;color:#fbbf24;font-weight:600;">${v}</div>
-            </div>`).join('')}
-        </div>
-        <div style="text-align:center;margin-top:16px;padding-top:12px;
-            border-top:1px solid rgba(251,191,36,0.2);
-            font-size:10px;color:#475569;letter-spacing:1px;">
-            ESTIMATED FROM TEST DATA · TransformerIQ ANALYZER
-        </div>
-    </div>`;
-}
 
 // ── Animated Phasor Diagram ───────────────────────────────────────────────────
 function renderPhasorDiagram(data) {
@@ -1005,21 +935,3 @@ function renderPhasorDiagram(data) {
     observer.observe(el, { attributes: true, attributeFilter: ['class'] });
 }
 
-// ── Dark / Light Mode Toggle ──────────────────────────────────────────────────
-function toggleTheme() {
-    const root = document.documentElement;
-    const btn  = document.getElementById('themeToggle');
-    const isLight = root.classList.toggle('light-mode');
-    if (btn) btn.textContent = isLight ? '🌙 Dark' : '☀ Light';
-    localStorage.setItem('theme', isLight ? 'light' : 'dark');
-}
-
-// Apply saved theme on load
-(function() {
-    const saved = localStorage.getItem('theme');
-    if (saved === 'light') {
-        document.documentElement.classList.add('light-mode');
-        const btn = document.getElementById('themeToggle');
-        if (btn) btn.textContent = '🌙 Dark';
-    }
-})();

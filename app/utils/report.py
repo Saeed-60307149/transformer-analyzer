@@ -379,27 +379,6 @@ tbody tr:nth-child(even) td{background:rgba(56,189,248,0.025)}
 .circuit-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px;margin:24px 0;text-align:center}
 .circuit-box h4{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px}
 
-/* ── Nameplate ── */
-.nameplate{
-  background:linear-gradient(135deg,#1a2236,#0f1729);
-  border:2px solid var(--amber);border-radius:14px;
-  padding:28px 36px;margin:24px 0;position:relative;overflow:hidden;
-}
-.nameplate::before{
-  content:'';position:absolute;inset:0;
-  background:repeating-linear-gradient(45deg,transparent,transparent 10px,
-    rgba(251,191,36,0.02) 10px,rgba(251,191,36,0.02) 11px);
-}
-.np-title{font-size:11px;letter-spacing:3px;color:var(--amber);text-transform:uppercase;text-align:center;margin-bottom:8px}
-.np-kva{font-family:'Instrument Serif',Georgia,serif;font-size:36px;text-align:center;color:#fff;margin-bottom:4px}
-.np-computed{font-size:11px;color:var(--muted);text-align:center;margin-bottom:20px}
-.np-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-.np-cell{text-align:center}
-.np-cell-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#475569}
-.np-cell-val{font-family:'IBM Plex Mono',monospace;font-size:15px;color:var(--amber);font-weight:600;margin-top:2px}
-.np-footer{text-align:center;margin-top:18px;padding-top:12px;border-top:1px solid rgba(251,191,36,0.2);
-  font-size:10px;color:#475569;letter-spacing:1px;text-transform:uppercase}
-
 /* ── Harmonic ── */
 .thd-row{display:flex;gap:20px;margin-bottom:16px;flex-wrap:wrap}
 .thd-badge{
@@ -421,9 +400,9 @@ tbody tr:nth-child(even) td{background:rgba(56,189,248,0.025)}
   body{background:#fff!important;color:#000!important}
   .cover{background:#f0f4f8!important;border-color:#ccc!important}
   .cover h1,.cover-brand{-webkit-text-fill-color:#0f3460!important}
-  .kpi,.tbl-wrap,.circuit-box,.nameplate,.chart-box{background:#fff!important;border-color:#ddd!important}
+  .kpi,.tbl-wrap,.circuit-box,.chart-box{background:#fff!important;border-color:#ddd!important}
   td,th{color:#000!important}
-  .td-val,.kpi-val,.np-cell-val{color:#0f3460!important}
+  .td-val,.kpi-val{color:#0f3460!important}
 }
 """
 
@@ -444,32 +423,7 @@ tbody tr:nth-child(even) td{background:rgba(56,189,248,0.025)}
     max_eff = cb.get('max_efficiency')
     Z_pct   = cb.get('Z_percent')
 
-    # Nameplate snap
-    sRaw = float(S_rated) if S_rated else 0
-    stdKVA = [0.05, 0.1, 0.15, 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 5, 7.5, 10, 15, 25, 50, 75, 100]
-    kvaRaw = sRaw / 1000
-    snapKVA = min(stdKVA, key=lambda x: abs(x - kvaRaw)) if sRaw > 0 else '—'
-
     freq = nl.get('frequency_Hz') or sc.get('frequency_Hz') or 50
-
-    # ── Nameplate HTML ───────────────────────────────────────────────────────
-    np_html = ''
-    if has_nl or has_sc:
-        np_html = f'''
-<div class="nameplate">
-  <div class="np-title">Estimated Nameplate</div>
-  <div class="np-kva">{snapKVA} kVA</div>
-  <div class="np-computed">Computed: {_f(sRaw/1000, 4)} kVA &nbsp;|&nbsp; {_f(S_rated, 2)} VA</div>
-  <div class="np-grid">
-    <div class="np-cell"><div class="np-cell-label">Primary V</div><div class="np-cell-val">{_f(V_oc, 1)} V</div></div>
-    <div class="np-cell"><div class="np-cell-label">Frequency</div><div class="np-cell-val">{_f(freq, 0)} Hz</div></div>
-    <div class="np-cell"><div class="np-cell-label">Rated I</div><div class="np-cell-val">{_f((float(I_sc)*1000) if I_sc else None, 1)} mA</div></div>
-    <div class="np-cell"><div class="np-cell-label">%Z</div><div class="np-cell-val">{_f(Z_pct, 2)}%</div></div>
-    <div class="np-cell"><div class="np-cell-label">Max η</div><div class="np-cell-val">{_f(max_eff, 1)}%</div></div>
-    <div class="np-cell"><div class="np-cell-label">Temp Rise</div><div class="np-cell-val">~40°C</div></div>
-  </div>
-  <div class="np-footer">Estimated From Test Data · TransformerIQ Analyzer</div>
-</div>'''
 
     # ── No-Load Table ────────────────────────────────────────────────────────
     nl_table = ''
@@ -716,8 +670,6 @@ tbody tr:nth-child(even) td{background:rgba(56,189,248,0.025)}
 
 <!-- ── Content ── -->
 <div class="content">
-
-{np_html}
 
 {'<!-- NL Section -->' if has_nl else ''}
 {f"""<div class="section">
