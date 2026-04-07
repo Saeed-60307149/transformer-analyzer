@@ -277,6 +277,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);
   content:'';position:absolute;inset:0;
   background:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(56,189,248,0.15),transparent),
              radial-gradient(ellipse 50% 40% at 80% 100%,rgba(129,140,248,0.1),transparent);
+  z-index:0;pointer-events:none;
+}
+.cover-logo,.cover h1,.cover-sub,.cover-meta,.cover-brand{
+  position:relative;z-index:1;
 }
 .cover-logo{
   display:inline-flex;align-items:center;gap:16px;margin-bottom:32px;
@@ -286,11 +290,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);
 .cover-icon{width:36px;height:36px;color:#38bdf8}
 .cover-brand{font-family:'Instrument Serif',Georgia,serif;font-size:22px;
   background:linear-gradient(135deg,#e2eeff,#38bdf8);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:#38bdf8;}
 .cover h1{font-family:'Instrument Serif',Georgia,serif;font-size:48px;font-weight:400;
   line-height:1.1;margin-bottom:12px;
   background:linear-gradient(135deg,#fff 0%,#38bdf8 60%,#818cf8 100%);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:#38bdf8;}
 .cover-sub{font-size:16px;color:var(--muted);letter-spacing:0.5px}
 .cover-meta{
   display:inline-flex;gap:32px;margin-top:32px;
