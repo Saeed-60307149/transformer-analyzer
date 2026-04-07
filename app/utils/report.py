@@ -89,8 +89,8 @@ def _svg_bar(data_points, width=520, height=220, color='#38bdf8', bg='#0d1a32'):
         )
 
     return (
-        f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" '
-        f'xmlns="http://www.w3.org/2000/svg" style="display:block;margin:16px auto;border-radius:10px;">'
+        f'<svg width="100%" height="auto" viewBox="0 0 {width} {height}" '
+        f'xmlns="http://www.w3.org/2000/svg" style="display:block;max-width:{width}px;margin:16px auto;border-radius:10px;">'
         + ''.join(parts) + '</svg>'
     )
 
@@ -155,8 +155,8 @@ def _svg_donut(slices, width=260, height=260, bg='#0d1a32'):
         )
 
     return (
-        f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" '
-        f'xmlns="http://www.w3.org/2000/svg" style="display:inline-block;border-radius:10px;">'
+        f'<svg width="100%" height="auto" viewBox="0 0 {width} {height}" '
+        f'xmlns="http://www.w3.org/2000/svg" style="display:block;max-width:{width}px;margin:0 auto;border-radius:10px;">'
         + ''.join(parts) + '</svg>'
     )
 
@@ -364,9 +364,10 @@ tbody tr:nth-child(even) td{background:rgba(56,189,248,0.025)}
 .sub-h{font-size:15px;font-weight:600;margin:24px 0 12px;color:var(--text)}
 
 /* ── Chart section ── */
-.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:24px 0}
-.chart-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center}
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:24px 0;page-break-inside:avoid;break-inside:avoid}
+.chart-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;page-break-inside:avoid;break-inside:avoid;overflow:visible}
 .chart-box h4{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
+.chart-box svg{max-width:100%;height:auto;display:block;margin:0 auto}
 
 /* ── Circuit ── */
 .circuit-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px;margin:24px 0;text-align:center}
