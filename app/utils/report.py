@@ -279,7 +279,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);
              radial-gradient(ellipse 50% 40% at 80% 100%,rgba(129,140,248,0.1),transparent);
   z-index:0;pointer-events:none;
 }
-.cover-logo,.cover h1,.cover-sub,.cover-meta,.cover-brand{
+.cover-logo,.cover h1,.cover-sub,.cover-meta,.cover-brand,.cover-team{
   position:relative;z-index:1;
 }
 .cover-logo{
@@ -306,6 +306,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);
 .meta-item{text-align:center}
 .meta-label{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:4px}
 .meta-value{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--cyan)}
+.cover-team{margin-top:28px;position:relative;z-index:1}
+.team-label{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:10px}
+.team-members{display:inline-flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center}
+.team-member{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text);
+  background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.15);
+  padding:6px 16px;border-radius:20px;}
+.team-sep{color:var(--muted);font-size:16px;line-height:1}
 
 /* ── Content ── */
 .content{max-width:960px;margin:0 auto;padding:48px 40px}
@@ -665,6 +672,16 @@ tbody tr:nth-child(even) td{background:rgba(56,189,248,0.025)}
     {'<div class="meta-item"><div class="meta-label">V_OC</div><div class="meta-value">' + _f(V_oc, 2) + ' V</div></div>' if has_nl else ''}
     {'<div class="meta-item"><div class="meta-label">Freq</div><div class="meta-value">' + _f(freq, 0) + ' Hz</div></div>' if True else ''}
     {'<div class="meta-item"><div class="meta-label">Max η</div><div class="meta-value">' + _f(max_eff, 2) + ' %</div></div>' if has_cb else ''}
+  </div>
+  <div class="cover-team">
+    <div class="team-label">Prepared by</div>
+    <div class="team-members">
+      <span class="team-member">Rayyan Iqbal</span>
+      <span class="team-sep">·</span>
+      <span class="team-member">Afaq Gul</span>
+      <span class="team-sep">·</span>
+      <span class="team-member">Saeed Abdullah Dar</span>
+    </div>
   </div>
 </div>
 
