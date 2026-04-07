@@ -70,7 +70,9 @@
    
    body {
      font-family: var(--font);
-     background: var(--bg);
+     background:
+       linear-gradient(rgba(2,8,19,0.82), rgba(2,8,19,0.82)),
+       url('Gemini_Generated_Image_sjo0wssjo0wssjo0.png') center/cover fixed no-repeat;
      color: var(--text);
      min-height: 100vh;
      overflow-x: hidden;
